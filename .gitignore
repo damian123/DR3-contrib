@@ -79,3 +79,6 @@
 /DawnCache
 /config
 /GPUCache
+/VariadicReduction/x64/Debug
+/VariadicReduction/x64/Release-23
+/LeaveOneOutRegression/x64
