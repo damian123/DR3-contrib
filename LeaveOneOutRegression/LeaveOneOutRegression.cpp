@@ -151,8 +151,8 @@ auto leaveOneOutRidgeCV(const std::vector<double>& x,
 
 //using namespace DRC::VecD2D;   // sse2 double
 //using namespace DRC::VecF4F;   // sse2 float
-//using namespace DRC::VecD4D;   // AVX2 double
-using namespace DRC::VecD8D;     // AVX512 double 
+using namespace DRC::VecD4D;   // AVX2 double
+//using namespace DRC::VecD8D;     // AVX512 double 
 //using namespace DRC::VecF16F;  // AVX512 float 
 //using namespace DRC::VecF8F;   // AVX2    float
 
@@ -257,6 +257,110 @@ void fastLOO()
     std::cout << fp_ms.count() / LOOP_MAX << " milli seconds per fit";
 
 }
+
+/* 
+* //to do
+void accurateAndfastLOO()
+{
+
+
+    int N = 1000000;
+
+    VecXX data_X(N);
+    VecXX data_Y(N);
+
+
+    std::cout << "generating data set size " << N << std::endl;
+
+    for (int i = 0; i < N; i++)
+    {
+        data_X[i] = i;
+        data_Y[i] = 0.5 * i + 0.25 + rand() / double(RAND_MAX);
+    }
+
+    std::cout << "fitting data" << std::endl;
+
+    double lambda = 0.0;
+    const int LOOP_MAX = 200;
+
+    //  std::vector<double>  debg;  
+
+    const auto  startTme = std::chrono::high_resolution_clock::now();
+
+
+
+    for (int LOOP = 0; LOOP < LOOP_MAX; LOOP++)
+    {
+
+        auto MULT = [](auto x, auto y) { return x * y; };
+        auto SUM = [](auto x, auto y) { return x + y; };
+        auto SQR = [](auto x) {return x * x; };
+
+        //compute reductions for Sx,Sy,Sxx,Sxy
+        auto S_x = reduce(data_X, SUM);
+        auto S_y = reduce(data_Y, SUM);
+        auto S_xx = transformReduce(data_X, SQR, SUM);
+        auto S_xy = transformReduce(data_X, data_Y, MULT, SUM);
+
+        // compute leave one out vectors
+
+        auto SX_loo = S_x - data_X;   //leave one out SX
+        auto SY_loo = S_y - data_Y;   //leave one out SY
+
+        auto data_X_squared = data_X * data_X;
+        auto SXX_loo = S_xx - data_X_squared; //leave one out SXX
+
+        auto data_X_Y = data_X * data_Y;
+        auto SXY_loo = S_xy - data_X_Y;  //leave one out SXY
+
+        double lambda = 0.0;// 0.1;  //regularisation parameter
+        double Sz = data_X.size() - 1.0;
+
+        // Compute the fit parameters
+        auto SXX_loo_plus_lambda = SXX_loo + lambda;
+        // 
+
+        auto denominator = (Sz * SXX_loo_plus_lambda) - (SX_loo * SX_loo);
+        auto inv_denominator = 1.0 / denominator;
+        // auto inv_denominator = 1.0 / ((Sz * SXX_loo_plus_lambda) - (SX_loo * SX_loo));
+
+        auto Beta_0_numerator = SXX_loo_plus_lambda * SY_loo - SX_loo * SXY_loo;
+        auto Beta_0 = Beta_0_numerator * inv_denominator;// / denominator; //vector of fits for Beta 0 offsets
+
+        auto Beta_1_numerator = Sz * SXY_loo - (SX_loo * SY_loo);
+        auto Beta_1 = Beta_1_numerator * inv_denominator;// / denominator;  //vector of Beta_1   slopes
+
+
+
+    }
+
+
+    //    std::cout << "setting data" << std::endl;
+
+    //    std::vector<double> x = data_X;
+     //   std::vector<double> y = data_Y;
+
+
+
+          //   debg = denominator;
+          //   debg = Beta_0_numerator;
+          //   debg = Beta_1_numerator;
+
+          //   std::vector<double> offset = Beta_0;
+          //   std::vector<double> slope = Beta_1;
+          //   std::vector<double> x = data_X;
+          //   std::vector<double> y = data_Y;
+
+
+    const auto endTme = std::chrono::high_resolution_clock::now();
+
+    const std::chrono::duration<double, std::milli> fp_ms = endTme - startTme;
+
+    std::cout << fp_ms.count() / LOOP_MAX << " milli seconds per fit";
+
+}
+*/
+
 
 void stdLOO()
 {
