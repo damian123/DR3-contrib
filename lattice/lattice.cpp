@@ -98,6 +98,14 @@ VecXX  blackScholes(const VecXX& S, const VecXX& K, const VecXX& t, const VecXX&
 }
 
 
+/*
+setting the number of steps to 1000 gives a reasonable approximation to the black scholes price
+for a european call option is done here https://wilmott.com/automatic-for-the-greeks/
+where itsclaimed that Julia takes 9 ms, and Quantlib takes 30ms
+this runs in 0.9 ms on a 2017 silver 4114 10 core cpu using AVX512  and double precision
+using C++ 17 lambdas and the VecX library to handle the SIMD intrinsics
+
+*/
 void doBinomialPricer()
 {
 
@@ -109,7 +117,9 @@ void doBinomialPricer()
 	double vol = 0.2;
 	double rate = 0.06;
 	double T = 1;
-    int N = 30000;
+
+
+    int N = 1000;// 30000;
 	{
 		TimerGuard timer(time);
 		res = europeanBinomialPricer(S, K, vol, rate, T, N);

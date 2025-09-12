@@ -856,7 +856,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyAccumulate2UR_X_pairwise(con
 
 	//working_Size
 	/*
-	* keep doubling block size untill reach input extent and accumulate if is power of 2 
+	* keep doubling block size until reach input extent and accumulate if is power of 2 
 	* cf integer power  in math
 	*/
 	INS_VEC  accumulations_of_all_blocks = 0.0;
@@ -1082,7 +1082,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 
 	//working_Size
 	/*
-	* keep doubling block size untill reach input extent and accumulate if is power of 2
+	* keep doubling block size until reach input extent and accumulate if is power of 2
 	* cf integer power  in math
 	*/
 	INS_VEC  accumulations_of_all_blocks = 0.0;
@@ -1377,7 +1377,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 
 	//working_Size
 	/*
-	* keep doubling block size untill reach input extent and accumulate if is power of 2
+	* keep doubling block size until reach input extent and accumulate if is power of 2
 	* cf integer power  in math
 	*/
 	INS_VEC  accumulations_of_all_blocks = 0.0;

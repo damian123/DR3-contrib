@@ -990,4 +990,30 @@ auto reduceM(InIt first, InIt last, const std::tuple<Lambdas...>& lambdas, std::
 	return applyLambdasImpl(lambdas, first, last, initStates, std::index_sequence_for<Lambdas...>{});
 }
 
-//*/
+
+///////////////////////////////////////// simple pairwise not reproducible pairwise reduction /////////////
+
+//unroll version
+template< typename INS_VEC, typename OP>
+typename InstructionTraits<INS_VEC>::FloatType pairwise_reduce(const Vec<INS_VEC>& rhs, OP& oper)
+{
+	return ApplyAccumulate2UR_X_pairwise(rhs, oper);
+
+}
+
+
+template< typename INS_VEC, typename TFRM,  typename OP>
+typename InstructionTraits<INS_VEC>::FloatType pairwise_transformReduce(const Vec<INS_VEC>& rhs, TFRM& tfrm, OP& oper)
+{
+	return  ApplyTransformAccumulate2UR_X_pairwise(rhs, tfrm, oper);
+}
+
+template< typename INS_VEC, typename TFRM,typename OP>
+typename InstructionTraits<INS_VEC>::FloatType pairwise_transformReduce(const Vec<INS_VEC>& lhs, const Vec<INS_VEC>& rhs, TFRM& tfrm, OP& oper)
+{
+	return  ApplyTransformAccumulate2UR_X_pairwise(lhs,rhs, tfrm, oper);
+}
+
+
+
+
