@@ -1,0 +1,570 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DR3 – C++ on Sea Lightning Talk</title>
+
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>Matrix Chain Multiplication</h1>
+        <p class="subtitle">Interactive Dynamic Programming Visualization</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Matrix Dimensions (comma-separated)</label>
+                <input type="text" id="dimensions" value="30, 35, 15, 5, 10, 20, 25" placeholder="e.g., 30, 35, 15, 5, 10, 20, 25">
+            </div>
+            <button class="btn-primary" onclick="initialize()">Initialize</button>
+            <button class="btn-step" onclick="step()">Step →</button>
+            <button class="btn-secondary" onclick="runAll()">Run All</button>
+            <button class="btn-secondary" onclick="reset()">Reset</button>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-title">Problem Setup</div>
+                <div id="matrices-display" class="matrices-display"></div>
+
+                <div class="explanation">
+                    <strong>Goal:</strong> Find the optimal way to parenthesize the matrix chain to minimize total scalar multiplications.
+                    <br><br>
+                    <strong>Key Insight:</strong> If we split at position k, cost = cost(i..k) + cost(k+1..j) + p[i-1]·p[k]·p[j]
+                </div>
+
+                <div class="formula">
+                    m[i,j] = min { m[i,k] + m[k+1,j] + p<sub>i-1</sub>·p<sub>k</sub>·p<sub>j</sub> }<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i ≤ k < j
+                </div>
+
+                <div id="step-info" class="step-info" style="display: none;">
+                    <div class="step-counter" id="step-counter">Step 0</div>
+                    <div id="step-description"></div>
+                </div>
+
+                <div id="result-box" class="result-box" style="display: none;">
+                    <div class="result-label">Minimum Scalar Multiplications</div>
+                    <div class="result-value" id="result-value">0</div>
+                    <div class="result-label" style="margin-top: 15px;">Optimal Parenthesization</div>
+                    <div class="parenthesization" id="parenthesization"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">DP Cost Table m[i,j]</div>
+                <div class="dp-table-container">
+                    <table class="dp-table" id="dp-table"></table>
+                </div>
+
+                <div class="panel-title" style="margin-top: 25px;">Split Point Table s[i,j]</div>
+                <div class="dp-table-container">
+                    <table class="split-table" id="split-table"></table>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color color-current"></div>
+                        <span>Current Cell</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color color-comparing"></div>
+                        <span>Comparing</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color color-computed"></div>
+                        <span>Computed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color color-optimal"></div>
+                        <span>Optimal Path</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-top: 25px;">
+            <div class="panel-title">Computation Tree</div>
+            <div class="tree-container" id="tree-container">
+                <svg id="tree-svg" class="tree-svg"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        let p = [];         // dimensions array
+        let n = 0;          // number of matrices
+        let m = [];         // cost table (DISPLAY)
+        let s = [];         // split table (DISPLAY)
+        let stepQueue = []; // steps for animation
+        let currentStep = 0;
+        let isComplete = false;
+
+        function initialize() {
+            const inputEl = document.getElementById('dimensions');
+            const input = inputEl ? inputEl.value : '';
+            p = input.split(',').map(x => parseInt(x.trim(), 10)).filter(x => !Number.isNaN(x));
+
+            if (p.length < 2) {
+                alert('Please enter at least 2 dimensions');
+                return;
+            }
+
+            n = p.length - 1;
+
+            // These get reset again inside generateSteps() for stepping, but we want a clean baseline here too.
+            m = Array.from({ length: n + 1 }, () => Array(n + 1).fill(0));
+            s = Array.from({ length: n + 1 }, () => Array(n + 1).fill(0));
+
+            stepQueue = [];
+            currentStep = 0;
+            isComplete = false;
+
+            generateSteps();
+            displayMatrices();
+            renderTables();
+            renderTree();
+
+            document.getElementById('step-info').style.display = 'block';
+            document.getElementById('result-box').style.display = 'none';
+            updateStepInfo();
+        }
+
+        // Correct step generation: compute DP using temp tables so the shown math is correct.
+        function generateSteps() {
+            stepQueue = [];
+
+            const mCalc = Array.from({ length: n + 1 }, () => Array(n + 1).fill(null));
+            const sCalc = Array.from({ length: n + 1 }, () => Array(n + 1).fill(null));
+
+            // Base cases
+            for (let i = 1; i <= n; i++) {
+                mCalc[i][i] = 0;
+                stepQueue.push({
+                    type: 'init',
+                    i,
+                    j: i,
+                    desc: `Initialize m[${i},${i}] = 0 (single matrix, no multiplication needed)`
+                });
+            }
+
+            // DP
+            for (let len = 2; len <= n; len++) {
+                for (let i = 1; i <= n - len + 1; i++) {
+                    const j = i + len - 1;
+
+                    stepQueue.push({
+                        type: 'start_cell',
+                        i,
+                        j,
+                        len,
+                        desc: `Computing m[${i},${j}] - chain of ${len} matrices (A${i} to A${j})`
+                    });
+
+                    let minCost = Infinity;
+                    let bestK = i;
+
+                    for (let k = i; k < j; k++) {
+                        const left = mCalc[i][k];
+                        const right = mCalc[k + 1][j];
+                        const mult = p[i - 1] * p[k] * p[j];
+                        const cost = left + right + mult;
+
+                        stepQueue.push({
+                            type: 'try_split',
+                            i,
+                            j,
+                            k,
+                            cost,
+                            formula: `m[${i},${k}] + m[${k + 1},${j}] + ${p[i - 1]}×${p[k]}×${p[j]}`,
+                            calculation: `${left} + ${right} + ${mult} = ${cost}`,
+                            isBest: cost < minCost,
+                            desc: `Try split at k=${k}: ${cost < minCost ? '✓ New minimum!' : 'Not better'}`
+                        });
+
+                        if (cost < minCost) {
+                            minCost = cost;
+                            bestK = k;
+                        }
+                    }
+
+                    mCalc[i][j] = minCost;
+                    sCalc[i][j] = bestK;
+
+                    stepQueue.push({
+                        type: 'finish_cell',
+                        i,
+                        j,
+                        value: minCost,
+                        split: bestK,
+                        desc: `m[${i},${j}] = ${minCost} (split at k=${bestK})`
+                    });
+                }
+            }
+
+            stepQueue.push({
+                type: 'complete',
+                desc: 'Algorithm complete! Optimal solution found.'
+            });
+
+            // Reset DISPLAY tables for stepping through
+            m = Array.from({ length: n + 1 }, () => Array(n + 1).fill(null));
+            s = Array.from({ length: n + 1 }, () => Array(n + 1).fill(null));
+            for (let i = 1; i <= n; i++) m[i][i] = 0;
+        }
+
+        function displayMatrices() {
+            const container = document.getElementById('matrices-display');
+            container.innerHTML = '';
+
+            for (let i = 0; i < n; i++) {
+                const box = document.createElement('div');
+                box.className = 'matrix-box';
+                box.innerHTML = `
+                <div class="matrix-name">A${i + 1}</div>
+                <div class="matrix-dims">${p[i]} × ${p[i + 1]}</div>
+            `;
+                container.appendChild(box);
+            }
+        }
+
+        function renderTables() {
+            renderDPTable();
+            renderSplitTable();
+        }
+
+        function renderDPTable() {
+            const table = document.getElementById('dp-table');
+            let html = '<tr><th></th>';
+
+            for (let j = 1; j <= n; j++) html += `<th>j=${j}</th>`;
+            html += '</tr>';
+
+            for (let i = 1; i <= n; i++) {
+                html += `<tr><th>i=${i}</th>`;
+                for (let j = 1; j <= n; j++) {
+                    let cellClass = '';
+                    let value = '';
+
+                    if (j < i) {
+                        cellClass = 'diagonal';
+                        value = '-';
+                    } else if (m[i][j] !== null) {
+                        cellClass = 'computed';
+                        value = m[i][j].toLocaleString();
+                    }
+
+                    html += `<td id="m-${i}-${j}" class="${cellClass}">${value}</td>`;
+                }
+                html += '</tr>';
+            }
+
+            table.innerHTML = html;
+        }
+
+        function renderSplitTable() {
+            const table = document.getElementById('split-table');
+            let html = '<tr><th></th>';
+
+            for (let j = 1; j <= n; j++) html += `<th>j=${j}</th>`;
+            html += '</tr>';
+
+            for (let i = 1; i <= n; i++) {
+                html += `<tr><th>i=${i}</th>`;
+                for (let j = 1; j <= n; j++) {
+                    let value = '';
+                    let cellClass = '';
+
+                    if (j <= i) {
+                        value = '-';
+                    } else if (s[i][j] !== null) {
+                        value = s[i][j];
+                        cellClass = 'computed';
+                    }
+
+                    html += `<td id="s-${i}-${j}" class="${cellClass}">${value}</td>`;
+                }
+                html += '</tr>';
+            }
+
+            table.innerHTML = html;
+        }
+
+        function step() {
+            if (currentStep >= stepQueue.length) return;
+
+            const stepData = stepQueue[currentStep];
+
+            // Clear previous highlights
+            document.querySelectorAll('.dp-table td, .split-table td').forEach(cell => {
+                cell.classList.remove('current', 'comparing');
+            });
+
+            switch (stepData.type) {
+                case 'init': {
+                    const initCell = document.getElementById(`m-${stepData.i}-${stepData.j}`);
+                    if (initCell) {
+                        initCell.classList.add('current');
+                        initCell.textContent = '0';
+                    }
+                    break;
+                }
+
+                case 'start_cell': {
+                    const startCell = document.getElementById(`m-${stepData.i}-${stepData.j}`);
+                    if (startCell) {
+                        startCell.classList.add('current');
+                        startCell.textContent = '?';
+                    }
+                    break;
+                }
+
+                case 'try_split': {
+                    const tryCell = document.getElementById(`m-${stepData.i}-${stepData.j}`);
+                    if (tryCell) tryCell.classList.add('current');
+
+                    const leftCell = document.getElementById(`m-${stepData.i}-${stepData.k}`);
+                    const rightCell = document.getElementById(`m-${stepData.k + 1}-${stepData.j}`);
+                    if (leftCell) leftCell.classList.add('comparing');
+                    if (rightCell) rightCell.classList.add('comparing');
+                    break;
+                }
+
+                case 'finish_cell': {
+                    m[stepData.i][stepData.j] = stepData.value;
+                    s[stepData.i][stepData.j] = stepData.split;
+
+                    const finishCell = document.getElementById(`m-${stepData.i}-${stepData.j}`);
+                    if (finishCell) {
+                        finishCell.classList.remove('current');
+                        finishCell.classList.add('computed');
+                        finishCell.textContent = stepData.value.toLocaleString();
+                    }
+
+                    const splitCell = document.getElementById(`s-${stepData.i}-${stepData.j}`);
+                    if (splitCell) {
+                        splitCell.classList.add('computed');
+                        splitCell.textContent = stepData.split;
+                    }
+                    break;
+                }
+
+                case 'complete': {
+                    isComplete = true;
+                    showResult();
+                    highlightOptimalPath(1, n);
+                    renderTree();
+                    break;
+                }
+            }
+
+            updateStepInfo();
+            currentStep++;
+        }
+
+        function runAll() {
+            while (currentStep < stepQueue.length) {
+                const stepData = stepQueue[currentStep];
+
+                if (stepData.type === 'finish_cell') {
+                    m[stepData.i][stepData.j] = stepData.value;
+                    s[stepData.i][stepData.j] = stepData.split;
+                } else if (stepData.type === 'complete') {
+                    isComplete = true;
+                }
+
+                currentStep++;
+            }
+
+            renderTables();
+            showResult();
+            highlightOptimalPath(1, n);
+            renderTree();
+
+            document.getElementById('step-counter').textContent = 'Complete!';
+            document.getElementById('step-description').textContent = 'Algorithm finished. Optimal solution found.';
+        }
+
+        function reset() {
+            if (p.length >= 2) initialize();
+        }
+
+        function updateStepInfo() {
+            if (currentStep >= stepQueue.length) {
+                document.getElementById('step-counter').textContent = 'Complete!';
+                document.getElementById('step-description').textContent = 'Algorithm finished.';
+                return;
+            }
+
+            const stepData = stepQueue[currentStep];
+            document.getElementById('step-counter').textContent = `Step ${currentStep + 1} of ${stepQueue.length}`;
+
+            let desc = stepData.desc;
+            if (stepData.type === 'try_split') {
+                desc += `<br><code>${stepData.formula}</code>`;
+                desc += `<br><code>${stepData.calculation}</code>`;
+            }
+
+            document.getElementById('step-description').innerHTML = desc;
+        }
+
+        function showResult() {
+            document.getElementById('result-box').style.display = 'block';
+            document.getElementById('result-value').textContent = m[1][n].toLocaleString();
+            document.getElementById('parenthesization').textContent = getParenthesization(1, n);
+        }
+
+        function getParenthesization(i, j) {
+            if (i === j) return `A${i}`;
+            const k = s[i][j];
+            const left = getParenthesization(i, k);
+            const right = getParenthesization(k + 1, j);
+            return `(${left} × ${right})`;
+        }
+
+        function highlightOptimalPath(i, j) {
+            if (i === j) return;
+
+            const cell = document.getElementById(`m-${i}-${j}`);
+            if (cell) cell.classList.add('optimal');
+
+            const k = s[i][j];
+            highlightOptimalPath(i, k);
+            highlightOptimalPath(k + 1, j);
+        }
+
+        // Tree rendering
+        function renderTree() {
+            const svg = document.getElementById('tree-svg');
+
+            if (!isComplete) {
+                svg.innerHTML = '<text x="10" y="30" fill="#888">Complete the algorithm to see the computation tree</text>';
+                svg.setAttribute('width', '400');
+                svg.setAttribute('height', '50');
+                return;
+            }
+
+            const tree = buildTree(1, n);
+            const dims = calculateTreeDimensions(tree);
+
+            svg.setAttribute('width', String(dims.width));
+            svg.setAttribute('height', String(dims.height + 40));
+            svg.innerHTML = '';
+
+            drawTree(svg, tree, dims.width / 2, 30, dims.width / 4);
+        }
+
+        function buildTree(i, j) {
+            if (i === j) {
+                return {
+                    label: `A${i}`,
+                    dims: `${p[i - 1]}×${p[i]}`,
+                    cost: 0,
+                    isLeaf: true
+                };
+            }
+
+            const k = s[i][j];
+            return {
+                label: `A${i}..${j}`,
+                dims: `${p[i - 1]}×${p[j]}`,
+                cost: m[i][j],
+                split: k,
+                isLeaf: false,
+                left: buildTree(i, k),
+                right: buildTree(k + 1, j)
+            };
+        }
+
+        function calculateTreeDimensions(tree) {
+            const depth = getTreeDepth(tree);
+            const leaves = getLeafCount(tree);
+            return {
+                width: Math.max(600, leaves * 100),
+                height: depth * 80
+            };
+        }
+
+        function getTreeDepth(tree) {
+            if (tree.isLeaf) return 1;
+            return 1 + Math.max(getTreeDepth(tree.left), getTreeDepth(tree.right));
+        }
+
+        function getLeafCount(tree) {
+            if (tree.isLeaf) return 1;
+            return getLeafCount(tree.left) + getLeafCount(tree.right);
+        }
+
+        function drawTree(svg, tree, x, y, spread) {
+            const ns = 'http://www.w3.org/2000/svg';
+
+            const g = document.createElementNS(ns, 'g');
+
+            const rect = document.createElementNS(ns, 'rect');
+            rect.setAttribute('x', String(x - 35));
+            rect.setAttribute('y', String(y - 15));
+            rect.setAttribute('width', '70');
+            rect.setAttribute('height', '45');
+            rect.setAttribute('rx', '6');
+            rect.setAttribute('fill', tree.isLeaf ? 'rgba(0, 217, 255, 0.2)' : 'rgba(255, 107, 107, 0.2)');
+            rect.setAttribute('stroke', tree.isLeaf ? '#00d9ff' : '#ff6b6b');
+            rect.setAttribute('stroke-width', '2');
+            g.appendChild(rect);
+
+            const text1 = document.createElementNS(ns, 'text');
+            text1.setAttribute('x', String(x));
+            text1.setAttribute('y', String(y + 2));
+            text1.setAttribute('text-anchor', 'middle');
+            text1.setAttribute('fill', '#fff');
+            text1.setAttribute('font-size', '12');
+            text1.setAttribute('font-weight', 'bold');
+            text1.textContent = tree.label;
+            g.appendChild(text1);
+
+            const text2 = document.createElementNS(ns, 'text');
+            text2.setAttribute('x', String(x));
+            text2.setAttribute('y', String(y + 18));
+            text2.setAttribute('text-anchor', 'middle');
+            text2.setAttribute('fill', '#888');
+            text2.setAttribute('font-size', '10');
+            text2.textContent = tree.dims;
+            g.appendChild(text2);
+
+            svg.appendChild(g);
+
+            if (!tree.isLeaf) {
+                const childY = y + 80;
+                const newSpread = Math.max(spread * 0.55, 45);
+
+                const leftX = x - spread;
+                const line1 = document.createElementNS(ns, 'line');
+                line1.setAttribute('x1', String(x));
+                line1.setAttribute('y1', String(y + 30));
+                line1.setAttribute('x2', String(leftX));
+                line1.setAttribute('y2', String(childY - 15));
+                line1.setAttribute('stroke', '#444');
+                line1.setAttribute('stroke-width', '2');
+                svg.appendChild(line1);
+
+                const rightX = x + spread;
+                const line2 = document.createElementNS(ns, 'line');
+                line2.setAttribute('x1', String(x));
+                line2.setAttribute('y1', String(y + 30));
+                line2.setAttribute('x2', String(rightX));
+                line2.setAttribute('y2', String(childY - 15));
+                line2.setAttribute('stroke', '#444');
+                line2.setAttribute('stroke-width', '2');
+                svg.appendChild(line2);
+
+                drawTree(svg, tree.left, leftX, childY, newSpread);
+                drawTree(svg, tree.right, rightX, childY, newSpread);
+            }
+        }
+
+        window.onload = initialize;
+    </script>
+</body>
+</html>
