@@ -1,20 +1,21 @@
 ﻿/* style.css - clean, readable dark UI for the DP visualizer */
+
+/* ---------- Theme variables ---------- */
 :root {
     --bg: #0b1020;
     --panel: rgba(255,255,255,0.06);
-    --panel-2: rgba(255,255,255,0.08);
     --border: rgba(255,255,255,0.10);
     --text: rgba(255,255,255,0.92);
     --muted: rgba(255,255,255,0.62);
     --accent: #00d9ff; /* cyan */
-    --accent2: #ff6b6b; /* coral */
-    --good: #2bd97c; /* green */
     --warn: #ffd166; /* amber */
+    --good: #2bd97c; /* green */
 
     --shadow: 0 10px 40px rgba(0,0,0,0.35);
     --radius: 16px;
 }
 
+/* ---------- Base ---------- */
 * {
     box-sizing: border-box;
 }
@@ -25,11 +26,12 @@ html, body {
 
 body {
     margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
     color: var(--text);
     background: radial-gradient(900px 600px at 15% 10%, rgba(0,217,255,0.18), transparent 55%), radial-gradient(900px 600px at 85% 20%, rgba(255,107,107,0.16), transparent 55%), radial-gradient(900px 600px at 50% 100%, rgba(43,217,124,0.10), transparent 60%), var(--bg);
 }
 
+/* ---------- Layout ---------- */
 .container {
     max-width: 1180px;
     margin: 0 auto;
@@ -39,7 +41,6 @@ body {
 h1 {
     margin: 0;
     font-size: clamp(22px, 2.3vw, 34px);
-    letter-spacing: 0.2px;
 }
 
 .subtitle {
@@ -48,6 +49,7 @@ h1 {
     font-size: 14px;
 }
 
+/* ---------- Controls ---------- */
 .controls {
     display: flex;
     flex-wrap: wrap;
@@ -74,60 +76,44 @@ label {
 }
 
 input[type="text"] {
-    width: 100%;
     padding: 10px 12px;
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.14);
     background: rgba(0,0,0,0.25);
     color: var(--text);
-    outline: none;
 }
 
     input[type="text"]:focus {
-        border-color: rgba(0,217,255,0.45);
-        box-shadow: 0 0 0 4px rgba(0,217,255,0.12);
+        outline: none;
+        border-color: rgba(0,217,255,0.55);
+        box-shadow: 0 0 0 4px rgba(0,217,255,0.16);
     }
 
 button {
-    appearance: none;
-    border: 1px solid rgba(255,255,255,0.14);
-    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.08);
     color: var(--text);
-    padding: 10px 12px;
+    padding: 10px 14px;
     border-radius: 12px;
     cursor: pointer;
-    transition: transform 0.06s ease, background 0.12s ease, border-color 0.12s ease;
-    user-select: none;
     font-weight: 600;
 }
 
     button:hover {
-        background: rgba(255,255,255,0.10);
-        border-color: rgba(255,255,255,0.22);
-    }
-
-    button:active {
-        transform: translateY(1px);
+        background: rgba(255,255,255,0.14);
     }
 
 .btn-primary {
-    border-color: rgba(0,217,255,0.35);
-    background: rgba(0,217,255,0.12);
+    border-color: rgba(0,217,255,0.55);
+    background: rgba(0,217,255,0.18);
 }
-
-    .btn-primary:hover {
-        background: rgba(0,217,255,0.18);
-    }
 
 .btn-step {
-    border-color: rgba(255,209,102,0.35);
-    background: rgba(255,209,102,0.12);
+    border-color: rgba(255,209,102,0.55);
+    background: rgba(255,209,102,0.18);
 }
 
-.btn-secondary {
-    border-color: rgba(255,255,255,0.14);
-}
-
+/* ---------- Panels ---------- */
 .main-content {
     display: grid;
     grid-template-columns: 1.05fr 0.95fr;
@@ -151,117 +137,33 @@ button {
 
 .panel-title {
     font-weight: 800;
-    letter-spacing: 0.2px;
     margin-bottom: 10px;
 }
 
-.explanation {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.45;
-    padding: 10px 12px;
-    background: rgba(0,0,0,0.22);
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 12px;
-}
-
-.formula {
-    margin-top: 10px;
-    padding: 10px 12px;
-    background: rgba(0,0,0,0.22);
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 12px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 12px;
-    color: rgba(255,255,255,0.84);
-}
-
+/* ---------- Matrix display ---------- */
 .matrices-display {
     display: flex;
-    flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 10px;
+    flex-wrap: wrap;
 }
 
 .matrix-box {
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: 12px;
     background: rgba(0,0,0,0.22);
-    border: 1px solid rgba(255,255,255,0.10);
-    min-width: 120px;
+    border: 1px solid rgba(255,255,255,0.12);
 }
 
 .matrix-name {
     font-weight: 800;
-    color: rgba(255,255,255,0.92);
 }
 
 .matrix-dims {
-    margin-top: 3px;
+    font-size: 12px;
     color: var(--muted);
-    font-size: 12px;
 }
 
-.step-info {
-    margin-top: 12px;
-    padding: 12px;
-    background: rgba(0,0,0,0.22);
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 12px;
-}
-
-.step-counter {
-    font-weight: 800;
-    margin-bottom: 6px;
-}
-
-#step-description {
-    color: rgba(255,255,255,0.82);
-    font-size: 13px;
-    line-height: 1.35;
-}
-
-    #step-description code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 12px;
-        color: rgba(255,255,255,0.86);
-        background: rgba(255,255,255,0.06);
-        padding: 2px 6px;
-        border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.10);
-    }
-
-.result-box {
-    margin-top: 12px;
-    padding: 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(43,217,124,0.25);
-    background: rgba(43,217,124,0.08);
-}
-
-.result-label {
-    color: rgba(255,255,255,0.75);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
-
-.result-value {
-    font-size: 28px;
-    font-weight: 900;
-    margin-top: 4px;
-    color: rgba(255,255,255,0.95);
-}
-
-.parenthesization {
-    margin-top: 6px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 13px;
-    color: rgba(255,255,255,0.90);
-    word-break: break-word;
-}
-
+/* ---------- Tables ---------- */
 .dp-table-container {
     overflow: auto;
     padding: 6px;
@@ -278,63 +180,57 @@ button {
 }
 
     .dp-table th, .split-table th {
-        position: sticky;
-        top: 0;
         background: rgba(10,16,32,0.92);
-        z-index: 2;
         padding: 8px 10px;
         border-radius: 10px;
-        text-align: left;
         font-size: 12px;
-        color: rgba(255,255,255,0.70);
+        color: var(--muted);
     }
 
     .dp-table td, .split-table td {
-        padding: 10px 10px;
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.10);
-        background: rgba(255,255,255,0.05);
+        padding: 10px;
+        border-radius: 10px;
+        border: 2px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
         text-align: center;
         font-variant-numeric: tabular-nums;
-        color: rgba(255,255,255,0.88);
-        min-width: 70px;
+        transition: background 0.08s ease, border-color 0.08s ease;
     }
 
-        /* cell states */
+        /* ---------- DP states (SHARP) ---------- */
         .dp-table td.diagonal {
-            background: rgba(0,0,0,0.16);
+            background: rgba(0,0,0,0.18);
             color: rgba(255,255,255,0.35);
         }
 
         .dp-table td.current {
-            border-color: rgba(0,217,255,0.70);
-            box-shadow: 0 0 0 4px rgba(0,217,255,0.14);
+            border-color: var(--accent);
+            background: rgba(0,217,255,0.28);
         }
 
         .dp-table td.comparing {
-            border-color: rgba(255,209,102,0.70);
-            box-shadow: 0 0 0 4px rgba(255,209,102,0.14);
+            border-color: var(--warn);
+            background: rgba(255,209,102,0.28);
         }
 
         .dp-table td.computed,
         .split-table td.computed {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.25);
         }
 
         .dp-table td.optimal {
-            border-color: rgba(43,217,124,0.65);
-            box-shadow: 0 0 0 4px rgba(43,217,124,0.14);
+            border-color: var(--good);
+            background: rgba(43,217,124,0.26);
         }
 
-/* legend */
+/* ---------- Legend ---------- */
 .legend {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px 14px;
+    gap: 12px;
     margin-top: 12px;
-    color: rgba(255,255,255,0.75);
     font-size: 12px;
+    color: var(--muted);
 }
 
 .legend-item {
@@ -347,30 +243,30 @@ button {
     width: 14px;
     height: 14px;
     border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.16);
+    border: 2px solid;
 }
 
 .color-current {
-    background: rgba(0,217,255,0.30);
-    border-color: rgba(0,217,255,0.6);
+    background: rgba(0,217,255,0.35);
+    border-color: var(--accent);
 }
 
 .color-comparing {
-    background: rgba(255,209,102,0.30);
-    border-color: rgba(255,209,102,0.6);
+    background: rgba(255,209,102,0.35);
+    border-color: var(--warn);
 }
 
 .color-computed {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.40);
 }
 
 .color-optimal {
-    background: rgba(43,217,124,0.22);
-    border-color: rgba(43,217,124,0.55);
+    background: rgba(43,217,124,0.35);
+    border-color: var(--good);
 }
 
-/* tree panel */
+/* ---------- Tree ---------- */
 .tree-container {
     overflow: auto;
     padding: 10px;
@@ -381,6 +277,5 @@ button {
 
 .tree-svg {
     width: 100%;
-    height: auto;
     display: block;
 }
