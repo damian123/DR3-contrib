@@ -9,10 +9,27 @@
 </head>
 <body>
     <div class="container">
-        <h1>Matrix Chain Multiplication</h1>
-        <p class="subtitle">Interactive Dynamic Programming Visualization | 
-            <a href="https://godbolt.org/z/4MenTYK6E" target="_blank" rel="noopener noreferrer">Compiler Explorer ↗</a> | 
-            <a href="https://godbolt.org/z/b3x3ao14K" target="_blank" rel="noopener noreferrer">Runtime comparison ↗</a>
+        <div class="title-row">
+            <h1>Matrix Chain Multiplication</h1>
+
+            <!-- Godbolt pills (top row) -->
+            <div class="pill-row">
+                <a class="pill" href="https://godbolt.org/z/4MenTYK6E" target="_blank" rel="noopener noreferrer">
+                    Compiler Explorer (compile-time DP)
+                </a>
+                <a class="pill" href="https://godbolt.org/z/b3x3ao14K" target="_blank" rel="noopener noreferrer">
+                    Runtime comparison (Godbolt)
+                </a>
+            </div>
+        </div>
+
+        <!-- Subtitle with Overload link -->
+        <p class="subtitle">
+            Interactive Dynamic Programming Visualization ·
+            <a href="https://accu.org/journals/overload/33/188/drakeford/"
+               target="_blank" rel="noopener noreferrer">
+                Overload article (compile-time DP)
+            </a>
         </p>
 
         <div class="controls">
@@ -118,7 +135,7 @@
 
             n = p.length - 1;
 
-            // These get reset again inside generateSteps() for stepping, but we want a clean baseline here too.
+            // Baseline tables
             m = Array.from({ length: n + 1 }, () => Array(n + 1).fill(0));
             s = Array.from({ length: n + 1 }, () => Array(n + 1).fill(0));
 
@@ -227,9 +244,9 @@
                 const box = document.createElement('div');
                 box.className = 'matrix-box';
                 box.innerHTML = `
-                <div class="matrix-name">A${i + 1}</div>
-                <div class="matrix-dims">${p[i]} × ${p[i + 1]}</div>
-            `;
+                        <div class="matrix-name">A${i + 1}</div>
+                        <div class="matrix-dims">${p[i]} × ${p[i + 1]}</div>
+                    `;
                 container.appendChild(box);
             }
         }
