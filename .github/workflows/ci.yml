@@ -83,3 +83,46 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1
+
+  thread-sanitizer:
+    name: ubuntu gcc Debug ThreadSanitizer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cmake -S . -B build-tsan \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DDR3_BUILD_TESTS=ON \
+            -DDR3_BUILD_EXAMPLES=OFF \
+            -DDR3_ENABLE_TSAN=ON \
+            -DDR3_ISA=AVX2
+      - name: Build concurrency targets
+        run: cmake --build build-tsan --target VectorTest LatticeTest --config Debug
+      - name: Test concurrency under TSan
+        run: |
+          ctest --test-dir build-tsan -C Debug \
+            -R 'ConcurrencySafety|ParallelAllocator|ParallelExecutor' \
+            --output-on-failure --timeout 180
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+
+  concurrency-stress:
+    name: ubuntu gcc Release concurrency stress
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cmake -S . -B build-stress \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDR3_BUILD_TESTS=ON \
+            -DDR3_BUILD_EXAMPLES=OFF \
+            -DDR3_ISA=AVX2
+      - name: Build concurrency targets
+        run: cmake --build build-stress --target VectorTest LatticeTest --config Release
+      - name: Repeat concurrency regressions
+        run: |
+          ctest --test-dir build-stress -C Release \
+            -R 'ConcurrencySafety|ParallelAllocator|ParallelExecutor' \
+            --repeat until-fail:50 --output-on-failure --timeout 180
