@@ -29,6 +29,7 @@ set(DR3_VECTOR_TEST_PORTABLE_SOURCES
     TestFilterSelect.cpp
     testNamespace.cpp
     test_precise_accumulation.cpp
+    TestForwardAD.cpp
 )
 
 add_executable(VectorTest ${DR3_VECTOR_TEST_PORTABLE_SOURCES})
@@ -52,3 +53,4 @@ set(DR3_GTEST_EXCLUDE
     "-TestFilterSelect.ApplyFilterB")
 
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
+add_test(NAME VectorTestForwardAD COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ForwardAD.*)
