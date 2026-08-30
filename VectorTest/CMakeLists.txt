@@ -25,6 +25,7 @@ set(DR3_VECTOR_TEST_PORTABLE_SOURCES
     testNamespace.cpp
     test_precise_accumulation.cpp
     TestForwardAD.cpp
+    TestCurve.cpp
 )
 
 add_executable(VectorTest ${DR3_VECTOR_TEST_PORTABLE_SOURCES})
@@ -49,3 +50,4 @@ set(DR3_GTEST_EXCLUDE
 
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
 add_test(NAME VectorTestForwardAD COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ForwardAD.*)
+add_test(NAME VectorTestCurve COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Curve.*:CurveSensitivity.*)
