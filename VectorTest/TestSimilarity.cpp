@@ -187,6 +187,22 @@ TEST(TestSimilarity, CorpusSmallerThanKReturnsAllSorted)
     EXPECT_EQ(hits[2].index, 0);
 }
 
+TEST(TestSimilarity, PaddedRowStrideDoesNotCopyOrScorePadding)
+{
+    const float query[] = {1.f, 0.f};
+    const float corpus[] = {
+        1.f, 0.f, 1000.f, 1000.f,
+        3.f, 0.f, -1000.f, -1000.f,
+        2.f, 0.f, 500.f, 500.f,
+    };
+    auto hits = DRC::AI::top_k_inner_product(query, 2, corpus, 3, 3, nullptr, 4);
+    ASSERT_EQ(hits.size(), 3u);
+    EXPECT_EQ(hits[0].index, 1);
+    EXPECT_EQ(hits[1].index, 2);
+    EXPECT_EQ(hits[2].index, 0);
+    EXPECT_FLOAT_EQ(hits[0].score, 3.f);
+}
+
 TEST(TestSimilarity, ThresholdOmitsLowScores)
 {
     const float query[] = {1.f, 0.f};
