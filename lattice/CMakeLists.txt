@@ -4,6 +4,7 @@ add_library(dr3_lattice STATIC
     european_binomial.cpp
     european_pde.cpp
     european_trinomial.cpp
+    parallel_executor.cpp
     tree_pricer_detail.cpp
     tridiagonal.cpp
 )
@@ -21,6 +22,7 @@ if(DR3_BUILD_TESTS)
     add_executable(LatticeTest
         tests/TestPdeGrid.cpp
         tests/TestEuropeanPde.cpp
+        tests/TestConcurrency.cpp
         tests/TestTreePricers.cpp
         tests/TestTridiagonal.cpp
     )
@@ -32,5 +34,9 @@ if(DR3_BUILD_TESTS)
     add_test(NAME LatticeTest COMMAND $<TARGET_FILE:LatticeTest>)
     add_test(NAME Grid1D COMMAND $<TARGET_FILE:LatticeTest> --gtest_filter=Grid1D.*)
     add_test(NAME EuropeanPde COMMAND $<TARGET_FILE:LatticeTest> --gtest_filter=EuropeanPde.*)
+    add_test(NAME ConcurrencySafety
+        COMMAND $<TARGET_FILE:LatticeTest> --gtest_filter=ConcurrencySafety.*)
+    add_test(NAME ParallelExecutor
+        COMMAND $<TARGET_FILE:LatticeTest> --gtest_filter=ParallelExecutor.*)
     add_test(NAME Tridiagonal COMMAND $<TARGET_FILE:LatticeTest> --gtest_filter=Tridiagonal.*)
 endif()

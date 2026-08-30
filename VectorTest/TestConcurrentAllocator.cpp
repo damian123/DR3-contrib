@@ -288,3 +288,30 @@ TEST(ConcurrencySafety, IndependentVecOperationsMatchSerial)
         EXPECT_DOUBLE_EQ(results[worker], 3.0 * (static_cast<double>(worker + 64) + 2.0));
     }
 }
+
+TEST(ConcurrencySafety, IndependentForwardAdMatchesSerial)
+{
+    constexpr std::size_t threadCount = 8;
+    StartGate start(threadCount);
+    std::vector<double> primal(threadCount), derivative(threadCount);
+    std::vector<std::thread> workers;
+    for (std::size_t worker = 0; worker < threadCount; ++worker)
+    {
+        workers.emplace_back([&, worker]
+        {
+            start.wait();
+            VecXX inputs(1.0 + static_cast<double>(worker), 65);
+            auto variables = D(inputs);
+            auto result = variables * variables + 2.0 * variables;
+            primal[worker] = result.value()[64];
+            derivative[worker] = result.derivative()[64];
+        });
+    }
+    for (auto& worker : workers) worker.join();
+    for (std::size_t worker = 0; worker < threadCount; ++worker)
+    {
+        const double input = 1.0 + static_cast<double>(worker);
+        EXPECT_DOUBLE_EQ(primal[worker], input * input + 2.0 * input);
+        EXPECT_DOUBLE_EQ(derivative[worker], 2.0 * input + 2.0);
+    }
+}
