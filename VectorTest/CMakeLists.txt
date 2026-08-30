@@ -24,6 +24,7 @@ endif()
 # depend on MSVC language extensions or missing headers.
 set(DR3_VECTOR_TEST_PORTABLE_SOURCES
     TestBasicPortable.cpp
+    TestConcurrentAllocator.cpp
     TestAccumulator.cpp
     TestAllocator.cpp
     TestFilterSelect.cpp
@@ -52,3 +53,5 @@ set(DR3_GTEST_EXCLUDE
     "-TestFilterSelect.ApplyFilterB")
 
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
+add_test(NAME ParallelAllocator
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ParallelAllocator.*)

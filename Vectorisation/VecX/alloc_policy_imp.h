@@ -10,6 +10,8 @@
 * Apache License version 2.0 or later.
 *****************************************************************************/
 #pragma once
+#include <memory>
+#include <mutex>
 #include <vector>
 #include <unordered_map>
 
@@ -53,7 +55,7 @@ public:
 
 	T* alloc()
 	{
-		if (m_pos < (m_sz - 1))
+		if (m_pos < m_sz)
 		{
 			T* ret = m_memPool[m_pos];
 			m_pos++;
@@ -84,12 +86,8 @@ public:
 		}
 
 		//search for values of i > 0
-		int i = m_pos;
-		if (i >= static_cast<int>(m_memPool.size()))
-		{
-			i = static_cast<int>(m_memPool.size()) - 1;
-		}
-		int maxPos = i;
+		int i = static_cast<int>(m_pos) - 1;
+		const int maxPos = static_cast<int>(m_pos);
 
 		for (; i > -1; i--)
 		{
@@ -111,20 +109,29 @@ public:
 
 	void addToPool(int numElements)
 	{
-		//m_vecSize for double 64 byte align ie cache line
-		size_t offsetAlgn = ByteAllignment;// 64;//   16;
-		std::vector<T>* pVecsMem = new std::vector<T>((long)(numElements)*m_vecSize + offsetAlgn);
-		m_allocatedVecs.push_back(pVecsMem);
+		constexpr size_t offsetAlgn = ByteAllignment;
+		// Reserve every potentially throwing container growth before publishing
+		// the new block into the pool.
+		m_allocatedVecs.reserve(m_allocatedVecs.size() + 1);
+		m_memPool.reserve(m_memPool.size() + static_cast<size_t>(numElements));
+		auto storage = std::make_unique<std::vector<T>>(
+			static_cast<size_t>(numElements) * static_cast<size_t>(m_vecSize)
+			+ ByteAllignment);
 
-		T* pstrtPt = &((*pVecsMem)[0]);
+		T* pstrtPt = storage->data();
 		while ((reinterpret_cast<long long>(pstrtPt)) % offsetAlgn) pstrtPt++;
+		std::vector<T*> newEntries;
+		newEntries.reserve(static_cast<size_t>(numElements));
 
 		for (int i = 0; i < numElements; i++)
 		{
-			m_memPool.push_back(pstrtPt);
+			newEntries.push_back(pstrtPt);
 			pstrtPt += m_vecSize;
 		}
 
+		m_allocatedVecs.push_back(storage.get());
+		m_memPool.insert(m_memPool.end(), newEntries.begin(), newEntries.end());
+		storage.release();
 		m_sz += numElements;
 
 	}
@@ -141,7 +148,7 @@ public:
 
 	const std::vector<std::vector<T>* >& getAllocVecs() const
 	{
-		m_allocatedVecs;
+		return m_allocatedVecs;
 	}
 
 private:
@@ -209,6 +216,14 @@ class AllAllocators
 		return *map;
 	}
 
+	// Heap allocation deliberately keeps the mutex alive through process
+	// teardown, including AllAllocatorsGuard destructors in other TUs.
+	static std::mutex& registryMutex()
+	{
+		static auto* mutex = new std::mutex();
+		return *mutex;
+	}
+
 
 	static 	void setUpPolicy(int size_N)
 	{
@@ -227,6 +242,7 @@ public:
 
 	static 	void removePolicy(int size_N)
 	{
+		std::lock_guard<std::mutex> lock(registryMutex());
 		auto& map = policies();
 		auto itr = map.find(size_N);
 		if (map.end() != itr)
@@ -245,6 +261,7 @@ public:
 
 	static 	void freeAll()
 	{
+		std::lock_guard<std::mutex> lock(registryMutex());
 		auto& map = policies();
 		for (auto& item : map)
 		{
@@ -258,6 +275,7 @@ public:
 
 	static T* alloc(int size_N)
 	{
+		std::lock_guard<std::mutex> lock(registryMutex());
 		if (lastSize_N == size_N)
 		{
 			return  pAllocPolicy->alloc();
@@ -274,6 +292,7 @@ public:
 
 	static void  free(size_t size_N, T* pMem)
 	{
+		std::lock_guard<std::mutex> lock(registryMutex());
 		int sz_N = static_cast<int>(size_N);
 
 		if (lastSize_N == sz_N)
@@ -342,6 +361,3 @@ public:
 	}
 
 };
-
-
-
