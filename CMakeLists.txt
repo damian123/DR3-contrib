@@ -50,7 +50,6 @@ if(DR3_BUILD_EXAMPLES)
     add_subdirectory(cumNormalExample)
     add_subdirectory(inverseCumNormalExample)
     add_subdirectory(dancingAVX512)
-    add_subdirectory(lattice)
     add_subdirectory(GettingStarted)
     add_subdirectory(scratch)
     add_subdirectory(VariadicReduction)
@@ -62,3 +61,8 @@ if(DR3_BUILD_TESTS)
     add_subdirectory(VectorTest)
 endif()
 
+# The lattice core is reusable. Its example and test executables are enabled
+# independently by the corresponding top-level options.
+if(DR3_BUILD_EXAMPLES OR DR3_BUILD_TESTS)
+    add_subdirectory(lattice)
+endif()
