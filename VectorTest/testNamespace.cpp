@@ -1,5 +1,5 @@
 #include "testNamespace.h"
-#include "../Vectorisation/VecX/alloc_policy.h"
+#include "../Vectorisation/VecX/alloc_policy_imp.h"
 
 AllAllocatorsGuard<typename VecXX::SCALA_TYPE> allocGuard;
 
