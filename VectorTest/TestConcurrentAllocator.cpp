@@ -239,6 +239,18 @@ TEST(ParallelAllocator, CleanupAfterWorkersJoin)
     EXPECT_TRUE(allocateFillVerifyFree(65, 7.0));
 }
 
+TEST(ParallelAllocator, CleanupRejectsLiveBlocks)
+{
+    std::size_t allocatedSize = 65;
+    double* values = nullptr;
+    allocPool(allocatedSize, values);
+    EXPECT_THROW(freeAllAllocators(double{}), std::logic_error);
+    values[0] = 42.0;
+    EXPECT_DOUBLE_EQ(values[0], 42.0);
+    freePool(allocatedSize, values);
+    EXPECT_NO_THROW(freeAllAllocators(double{}));
+}
+
 TEST(ParallelAllocator, RepeatedStartupAndShutdown)
 {
     for (std::size_t repetition = 0; repetition < 10; ++repetition)

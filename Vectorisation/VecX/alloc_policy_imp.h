@@ -12,6 +12,7 @@
 #pragma once
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <vector>
 #include <unordered_map>
 
@@ -196,6 +197,11 @@ public:
 		m_pool->free(pElement);
 	}
 
+	inline long liveCount() const
+	{
+		return m_pool->pos();
+	}
+
 };
 
 
@@ -263,6 +269,13 @@ public:
 	{
 		std::lock_guard<std::mutex> lock(registryMutex());
 		auto& map = policies();
+		for (const auto& item : map)
+		{
+			if (item.second->liveCount() != 0)
+			{
+				throw std::logic_error("cannot clean allocator pools while blocks are live");
+			}
+		}
 		for (auto& item : map)
 		{
 			delete item.second;
