@@ -34,21 +34,16 @@ target_include_directories(VectorTest PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 dr3_apply_isa(VectorTest)
 
-include(GoogleTest)
+if(MSVC)
+    target_compile_options(VectorTest PRIVATE /EHsc)
+endif()
 
 # Existing VectorTest cases that crash or fail outside the original
 # MSVC/Release configuration. Keep them in the tree; do not run them
-# in the portable CTest filter.
+# in the portable CTest filter. Use add_test rather than
+# gtest_discover_tests: CMake 4.x POST_BUILD discovery fails on
+# Windows when the binary is in a multi-config output directory.
 set(DR3_GTEST_EXCLUDE
     "-TestAccumulator.simple_pairwise_transformReduce:TestAccumulator.bivariate_pairwise_transformReduce:TestFilterSelect.ApplyFilterB")
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.22")
-    gtest_discover_tests(VectorTest
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-        DISCOVERY_TIMEOUT 60
-        TEST_FILTER "${DR3_GTEST_EXCLUDE}"
-        PROPERTIES ENVIRONMENT "GTEST_COLOR=1"
-    )
-else()
-    add_test(NAME VectorTest COMMAND VectorTest --gtest_filter=${DR3_GTEST_EXCLUDE})
-endif()
+add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
