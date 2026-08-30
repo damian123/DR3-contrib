@@ -25,6 +25,7 @@ set(DR3_VECTOR_TEST_PORTABLE_SOURCES
     testNamespace.cpp
     test_precise_accumulation.cpp
     TestSimilarity.cpp
+    TestNeuralKernels.cpp
 )
 
 add_executable(VectorTest ${DR3_VECTOR_TEST_PORTABLE_SOURCES})
@@ -49,3 +50,4 @@ set(DR3_GTEST_EXCLUDE
 
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
 add_test(NAME VectorTestSimilarity COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=TestSimilarity.*)
+add_test(NAME VectorTestNeuralKernels COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Softmax.*:LayerNorm.*:RMSNorm.*:Activation.*)
