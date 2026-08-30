@@ -329,6 +329,15 @@ void print_benchmark(const std::vector<Position>& book)
               << max_rel_diff(scalar.price, aligned) << '\n';
     std::cout << "Naive vs pairwise value gap: "
               << (naive_sum(scalar.weighted) - pairwise_sum(scalar.weighted)) << '\n';
+    auto shocked = book;
+    for (auto& p : shocked) {
+        p.spot *= 1.01;
+    }
+    const double base_value = pairwise_sum(scalar.weighted);
+    const double shocked_value = pairwise_sum(scalar_book(shocked).weighted);
+    std::cout << "Base portfolio value: " << base_value << '\n';
+    std::cout << "Repriced value after +1% spot: " << shocked_value << '\n';
+    std::cout << "Portfolio P&L: " << (shocked_value - base_value) << '\n';
     std::cout << "(sink " << sink << ")\n";
     std::cout << "Times depend on processor, compiler, instruction set, and flags.\n";
 }
