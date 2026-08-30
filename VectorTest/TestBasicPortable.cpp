@@ -11,8 +11,6 @@
 #include <numeric>
 #include <vector>
 
-AllAllocatorsGuard<typename VecXX::SCALA_TYPE> allocGuard;
-
 TEST(TestBasicPortable, MakeAndIndex)
 {
     std::vector<Numeric> three(3, asNumber(42.0));

@@ -1,4 +1,7 @@
 #include "testNamespace.h"
+#include "../Vectorisation/VecX/alloc_policy.h"
+
+AllAllocatorsGuard<typename VecXX::SCALA_TYPE> allocGuard;
 
 Numeric asNumber(long double x)
 {
