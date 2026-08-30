@@ -43,6 +43,11 @@ if(DR3_ENABLE_SANITIZERS)
     endif()
 endif()
 
+if(DR3_BUILD_TESTS)
+    include(CTest)
+    enable_testing()
+endif()
+
 add_subdirectory(Vectorisation)
 
 if(DR3_BUILD_EXAMPLES)
@@ -54,11 +59,10 @@ if(DR3_BUILD_EXAMPLES)
     add_subdirectory(GettingStarted)
     add_subdirectory(scratch)
     add_subdirectory(VariadicReduction)
+    add_subdirectory(portfolioGreeksExample)
 endif()
 
 if(DR3_BUILD_TESTS)
-    include(CTest)
-    enable_testing()
     add_subdirectory(VectorTest)
 endif()
 
