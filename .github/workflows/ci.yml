@@ -63,6 +63,23 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --timeout 120
 
+  sse42:
+    name: ubuntu gcc Release SSE4.2 VecD2D
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDR3_BUILD_TESTS=ON \
+            -DDR3_BUILD_EXAMPLES=OFF \
+            -DDR3_ISA=SSE4.2
+      - name: Build SSE4.2 tests
+        run: cmake --build build --config Release --target VectorTestSSE42
+      - name: Test
+        run: ctest --test-dir build -C Release -R SSE42 --output-on-failure --timeout 60
+
   sanitizers:
     name: ubuntu gcc Debug ASan/UBSan
     runs-on: ubuntu-latest

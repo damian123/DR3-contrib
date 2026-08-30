@@ -52,3 +52,20 @@ set(DR3_GTEST_EXCLUDE
     "-TestFilterSelect.ApplyFilterB")
 
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
+
+# Separate TU compiled with SSE4.2 so the 128-bit VecD2D path exercises
+# VCL INSTRSET >= 6. Default VectorTest remains AVX2 / VecD4D.
+add_executable(VectorTestSSE42 TestSSE42.cpp)
+target_link_libraries(VectorTestSSE42
+    PRIVATE Vectorisation GTest::gtest GTest::gtest_main)
+target_include_directories(VectorTestSSE42
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+dr3_apply_sse42(VectorTestSSE42)
+
+if(MSVC)
+    target_compile_options(VectorTestSSE42 PRIVATE /EHsc)
+endif()
+
+add_test(
+    NAME VectorTestSSE42
+    COMMAND $<TARGET_FILE:VectorTestSSE42>)

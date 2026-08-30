@@ -18,7 +18,11 @@ Optional CMake flags:
 
 - `-DDR3_BUILD_EXAMPLES=ON|OFF` (default ON)
 - `-DDR3_BUILD_TESTS=ON|OFF` (default ON)
-- `-DDR3_ISA=SSE2|AVX2|AVX512` (default AVX2)
+- `-DDR3_ISA=SSE2|SSE4.2|AVX2|AVX512` (default AVX2). `SSE4.2` upgrades
+  the 128-bit `DRC::VecD2D` path (VCL `INSTRSET >= 6`) while `SSE2`
+  remains the fallback. The default VectorTest suite stays on AVX2
+  `VecD4D`. A separate `VectorTestSSE42` target is always compiled with
+  SSE4.2 flags.
 - `-DDR3_ENABLE_SANITIZERS=ON` (GCC/Clang AddressSanitizer and
   UndefinedBehaviorSanitizer)
 
