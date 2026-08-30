@@ -96,11 +96,7 @@ jobs:
       - name: Build
         run: cmake --build build --config Debug
       - name: Test
-        # Allocator teardown currently reports heap-use-after-free under
-        # ASan (AllAllocatorsGuard). Keep the job as a compile+run signal
-        # without blocking the required matrix.
-        continue-on-error: true
         run: ctest --test-dir build -C Debug --output-on-failure --timeout 180
         env:
-          ASAN_OPTIONS: detect_leaks=0:halt_on_error=0
-          UBSAN_OPTIONS: halt_on_error=0
+          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1
