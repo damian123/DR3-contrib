@@ -24,7 +24,7 @@ constexpr double kPi = 3.14159265358979323846;
 
 struct McResult {
     double mean = 0.0;
-    double stderr = 0.0;
+    double standard_error = 0.0;
     double ci_low = 0.0;
     double ci_high = 0.0;
     int paths = 0;
@@ -74,9 +74,9 @@ McResult summarise(const std::vector<double>& samples)
         var += d * d;
     }
     var /= std::max(1.0, n - 1.0);
-    r.stderr = std::sqrt(var / n);
-    r.ci_low = r.mean - 1.96 * r.stderr;
-    r.ci_high = r.mean + 1.96 * r.stderr;
+    r.standard_error = std::sqrt(var / n);
+    r.ci_low = r.mean - 1.96 * r.standard_error;
+    r.ci_high = r.mean + 1.96 * r.standard_error;
     return r;
 }
 
@@ -146,7 +146,7 @@ int run_self_test()
 
     auto small = mc_simd(S, K, t, r, sigma, 512, 7, true);
     auto large = mc_simd(S, K, t, r, sigma, 4096, 7, true);
-    if (!(large.stderr < small.stderr)) {
+    if (!(large.standard_error < small.standard_error)) {
         return fail("standard error did not narrow with more paths");
     }
 
@@ -171,9 +171,9 @@ void print_report(int paths)
     std::cout << "Paths: " << paths << '\n';
     std::cout << "SIMD type: AVX2 VecD4D (width " << VecXX::INS::size() << ")\n";
     std::cout << "Analytic BS: " << analytic.price << '\n';
-    std::cout << "Scalar mean: " << scalar.mean << "  se=" << scalar.stderr
+    std::cout << "Scalar mean: " << scalar.mean << "  se=" << scalar.standard_error
               << "  CI=[" << scalar.ci_low << ", " << scalar.ci_high << "]\n";
-    std::cout << "SIMD mean:   " << simd.mean << "  se=" << simd.stderr
+    std::cout << "SIMD mean:   " << simd.mean << "  se=" << simd.standard_error
               << "  CI=[" << simd.ci_low << ", " << simd.ci_high << "]\n";
     std::cout << "Times and errors depend on processor, compiler, and flags.\n";
 }
