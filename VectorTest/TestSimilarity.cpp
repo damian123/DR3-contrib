@@ -57,6 +57,20 @@ TEST(TestSimilarity, MismatchedLengthsAreRejected)
     EXPECT_THROW(DRC::AI::cosine_similarity(a, 2, b, 1), std::invalid_argument);
 }
 
+TEST(TestSimilarity, NonOwningSpansMatchPointerKernels)
+{
+    std::vector<float> a = {1.f, -2.f, 3.f, 0.5f, 7.f, -4.f, 2.f, 9.f, -1.f};
+    std::vector<float> b = {-3.f, 1.f, 2.f, 4.f, -1.f, 5.f, 0.25f, 2.f, 8.f};
+    DRC::AI::Simd::SpanXX as(a.data(), a.size());
+    DRC::AI::Simd::SpanXX bs(b.data(), b.size());
+    EXPECT_NEAR(DRC::AI::dot_product(as, bs),
+        DRC::AI::dot_product(a.data(), a.size(), b.data(), b.size()), 1e-5f);
+    EXPECT_NEAR(DRC::AI::squared_l2_distance(as, bs),
+        DRC::AI::squared_l2_distance(a.data(), a.size(), b.data(), b.size()), 1e-5f);
+    EXPECT_NEAR(DRC::AI::cosine_similarity(as, bs),
+        DRC::AI::cosine_similarity(a.data(), a.size(), b.data(), b.size()), 1e-5f);
+}
+
 TEST(TestSimilarity, IdenticalVectors)
 {
     const std::size_t dims[] = {1, 7, 8, 9, 15, 16, 17, 127, 128, 129};

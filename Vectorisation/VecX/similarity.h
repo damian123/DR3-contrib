@@ -63,7 +63,26 @@ inline float dot_product(const float* a, std::size_t na, const float* b, std::si
 
 inline float dot_product(Simd::SpanXX a, Simd::SpanXX b)
 {
-    return dot_product(a.start(), a.size(), b.start(), b.size());
+    require_same_length(a.size(), b.size(), "dot_product");
+    if (a.empty()) {
+        return 0.f;
+    }
+    constexpr std::size_t width = 8;
+    Vec8f sum(0.f);
+    std::size_t i = 0;
+    for (; i + width <= a.size(); i += width) {
+        Vec8f av, bv;
+        av.load(a.start() + i);
+        bv.load(b.start() + i);
+        sum += av * bv;
+    }
+    if (i < a.size()) {
+        Vec8f av, bv;
+        av.load_partial(static_cast<int>(a.size() - i), a.start() + i);
+        bv.load_partial(static_cast<int>(a.size() - i), b.start() + i);
+        sum += av * bv;
+    }
+    return horizontal_add(sum);
 }
 
 inline float squared_l2_distance(const float* a, std::size_t na, const float* b, std::size_t nb)
@@ -84,7 +103,28 @@ inline float squared_l2_distance(const float* a, std::size_t na, const float* b,
 
 inline float squared_l2_distance(Simd::SpanXX a, Simd::SpanXX b)
 {
-    return squared_l2_distance(a.start(), a.size(), b.start(), b.size());
+    require_same_length(a.size(), b.size(), "squared_l2_distance");
+    if (a.empty()) {
+        return 0.f;
+    }
+    constexpr std::size_t width = 8;
+    Vec8f sum(0.f);
+    std::size_t i = 0;
+    for (; i + width <= a.size(); i += width) {
+        Vec8f av, bv;
+        av.load(a.start() + i);
+        bv.load(b.start() + i);
+        const Vec8f d = av - bv;
+        sum += d * d;
+    }
+    if (i < a.size()) {
+        Vec8f av, bv;
+        av.load_partial(static_cast<int>(a.size() - i), a.start() + i);
+        bv.load_partial(static_cast<int>(a.size() - i), b.start() + i);
+        const Vec8f d = av - bv;
+        sum += d * d;
+    }
+    return horizontal_add(sum);
 }
 
 inline float l2_norm2(const float* a, std::size_t n)
@@ -110,7 +150,17 @@ inline float cosine_similarity(const float* a, std::size_t na, const float* b, s
 
 inline float cosine_similarity(Simd::SpanXX a, Simd::SpanXX b)
 {
-    return cosine_similarity(a.start(), a.size(), b.start(), b.size());
+    require_same_length(a.size(), b.size(), "cosine_similarity");
+    if (a.empty()) {
+        return kZeroNormCosine;
+    }
+    const float n2a = dot_product(a, a);
+    const float n2b = dot_product(b, b);
+    if (!(n2a > kZeroNormEps) || !(n2b > kZeroNormEps)) {
+        return kZeroNormCosine;
+    }
+    const double denom = std::sqrt(static_cast<double>(n2a)) * std::sqrt(static_cast<double>(n2b));
+    return static_cast<float>(static_cast<double>(dot_product(a, b)) / denom);
 }
 
 inline void normalize_l2_inplace(float* x, std::size_t n)
@@ -192,9 +242,9 @@ inline std::vector<SearchHit> top_k(
     const std::size_t keep = std::min(k, n);
     std::priority_queue<SearchHit, std::vector<SearchHit>, HitWorse> best{HitWorse{metric}};
 
+    Simd::SpanXX query_span(const_cast<float*>(query), d);
     for (std::size_t i = 0; i < n; ++i) {
         const float* row = corpus + i * stride;
-        Simd::SpanXX query_span(const_cast<float*>(query), d);
         Simd::SpanXX row_span(const_cast<float*>(row), d);
         float s = 0.f;
         switch (metric) {
