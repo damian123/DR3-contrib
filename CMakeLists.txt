@@ -78,6 +78,7 @@ if(DR3_BUILD_EXAMPLES)
     add_subdirectory(VariadicReduction)
     add_subdirectory(portfolioGreeksExample)
     add_subdirectory(portfolioStressExample)
+    add_subdirectory(monteCarloExample)
 endif()
 
 if(DR3_BUILD_TESTS)
