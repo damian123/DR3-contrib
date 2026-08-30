@@ -158,7 +158,7 @@ TEST(CurveSensitivity, DiscountFactorSensitivityMatchesFormulaAndCentralBump)
     const double zero_rate = 0.02 + 0.25 * (0.04 - 0.02);
     const double expected = -query * std::exp(-zero_rate * query) * 0.75;
     EXPECT_NEAR(discount.getScalarDeriv(), expected, 1e-14);
-    const auto bumped = [](double lower) {
+    const auto bumped = [query](double lower) {
         const double z = lower + 0.25 * (0.04 - lower);
         return std::exp(-z * query);
     };
