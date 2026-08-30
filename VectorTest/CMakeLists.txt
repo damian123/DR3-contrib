@@ -65,3 +65,21 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.22")
 else()
     add_test(NAME VectorTest COMMAND VectorTest --gtest_filter=${DR3_GTEST_EXCLUDE})
 endif()
+
+# Separate TU compiled with SSE4.2 so the 128-bit VecD2D path exercises
+# VCL INSTRSET >= 6. Default VectorTest remains AVX2 / VecD4D.
+add_executable(VectorTestSSE42 TestSSE42.cpp)
+target_link_libraries(VectorTestSSE42 PRIVATE Vectorisation GTest::gtest GTest::gtest_main)
+target_include_directories(VectorTestSSE42 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+dr3_apply_sse42(VectorTestSSE42)
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.22")
+    gtest_discover_tests(VectorTestSSE42
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        DISCOVERY_TIMEOUT 60
+        TEST_PREFIX "SSE42."
+        PROPERTIES ENVIRONMENT "GTEST_COLOR=1"
+    )
+else()
+    add_test(NAME VectorTestSSE42 COMMAND VectorTestSSE42)
+endif()
