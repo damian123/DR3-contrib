@@ -34,16 +34,22 @@ function(dr3_apply_isa target)
     endif()
 endfunction()
 
-if(DR3_ENABLE_SANITIZERS)
-    if(MSVC)
-        message(WARNING "DR3_ENABLE_SANITIZERS is supported on GCC/Clang only")
-    else()
-        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
-        add_link_options(-fsanitize=address,undefined)
+function(dr3_enable_sanitizers target)
+    if(DR3_ENABLE_SANITIZERS AND NOT MSVC)
+        target_compile_options(${target} PRIVATE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer)
+        target_link_options(${target} PRIVATE
+            -fsanitize=address,undefined)
     endif()
+endfunction()
+
+if(DR3_ENABLE_SANITIZERS AND MSVC)
+    message(WARNING "DR3_ENABLE_SANITIZERS is supported on GCC/Clang only")
 endif()
 
 add_subdirectory(Vectorisation)
+dr3_enable_sanitizers(Vectorisation)
 
 if(DR3_BUILD_EXAMPLES)
     add_subdirectory(accumulateExample)
@@ -54,11 +60,23 @@ if(DR3_BUILD_EXAMPLES)
     add_subdirectory(GettingStarted)
     add_subdirectory(scratch)
     add_subdirectory(VariadicReduction)
+
+    foreach(dr3_example_target IN ITEMS
+            accumulateExample
+            cumNormalExample
+            inverseCumNormalExample
+            dancingAVX512
+            lattice
+            GettingStarted
+            ScratchExample
+            VariadicExample)
+        dr3_enable_sanitizers(${dr3_example_target})
+    endforeach()
 endif()
 
 if(DR3_BUILD_TESTS)
     include(CTest)
     enable_testing()
     add_subdirectory(VectorTest)
+    dr3_enable_sanitizers(VectorTest)
 endif()
-
