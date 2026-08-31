@@ -1,4 +1,4 @@
-// Compile this translation unit with SSE4.2 so VCL INSTRSET >= 6 and
+// Compile this translation unit for exactly SSE4.2 so VCL INSTRSET == 6 and
 // the existing 128-bit DRC::VecD2D path uses SSE4.2 Vec2d operations.
 // The AVX2 VectorTest suite is unchanged.
 
@@ -15,13 +15,25 @@
 #include <numeric>
 #include <vector>
 
+#if defined(__AVX__) || defined(__AVX2__)
+#error "VectorTestSSE42 must not be compiled with an AVX baseline"
+#endif
+
+static_assert(INSTRSET == 6, "VectorTestSSE42 must select exactly SSE4.2");
+
 using namespace DRC::VecD2D;
 
 AllAllocatorsGuard<typename VecXX::SCALA_TYPE> allocGuard;
 
-TEST(TestSSE42, CompiledInstructionSetIsAtLeastSse42)
+TEST(TestSSE42, CompiledInstructionSetIsSse42)
 {
-    EXPECT_GE(INSTRSET, 6);
+    EXPECT_EQ(INSTRSET, 6);
+}
+
+TEST(TestSSE42, ExplicitVclSse42IntrinsicPath)
+{
+    volatile uint64_t bits = 0xF0F0F0F0F0F0F0F0;
+    EXPECT_EQ(vml_popcnt(bits), 32);
 }
 
 TEST(TestSSE42, VecD2DWidthIsTwo)

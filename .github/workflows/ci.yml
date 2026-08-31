@@ -80,6 +80,18 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release -R SSE42 --output-on-failure --timeout 60
 
+  sse42-msvc:
+    name: windows MSVC x64 Release SSE4.2 VecD2D
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure x64 SSE4.2 baseline
+        run: cmake -S . -B build -A x64 -DDR3_BUILD_TESTS=ON -DDR3_BUILD_EXAMPLES=OFF -DDR3_ISA=SSE4.2
+      - name: Build SSE4.2 tests
+        run: cmake --build build --config Release --target VectorTestSSE42
+      - name: Test
+        run: ctest --test-dir build -C Release -R SSE42 --output-on-failure --timeout 60
+
   sanitizers:
     name: ubuntu gcc Debug ASan/UBSan
     runs-on: ubuntu-latest

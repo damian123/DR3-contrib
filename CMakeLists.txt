@@ -14,18 +14,6 @@ option(DR3_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanit
 set(DR3_ISA "AVX2" CACHE STRING "Instruction set for CMake builds: SSE2, SSE4.2, AVX2, or AVX512")
 set_property(CACHE DR3_ISA PROPERTY STRINGS SSE2 SSE4.2 AVX2 AVX512)
 
-function(dr3_apply_sse42 target)
-    # VCL selects SSE4.2 Vec2d paths when INSTRSET >= 6. GCC/Clang get
-    # that from -msse4.2. MSVC has no /arch:SSE4.2; /arch:AVX is the
-    # lowest official arch that includes SSE4.2, plus INSTRSET=6.
-    if(MSVC)
-        target_compile_options(${target} PRIVATE /arch:AVX)
-        target_compile_definitions(${target} PRIVATE INSTRSET=6)
-    else()
-        target_compile_options(${target} PRIVATE -msse4.2)
-    endif()
-endfunction()
-
 function(dr3_apply_isa target)
     if(MSVC)
         if(DR3_ISA STREQUAL "AVX512")
@@ -33,7 +21,9 @@ function(dr3_apply_isa target)
         elseif(DR3_ISA STREQUAL "SSE2")
             target_compile_options(${target} PUBLIC /arch:SSE2)
         elseif(DR3_ISA STREQUAL "SSE4.2" OR DR3_ISA STREQUAL "SSE42")
-            target_compile_options(${target} PUBLIC /arch:AVX)
+            # Keep MSVC's normal x64 SSE2 code-generation baseline. VCL uses
+            # explicit SSE4.2 intrinsics when INSTRSET is 6, so /arch:AVX is
+            # neither necessary nor compatible with an SSE4.2 minimum.
             target_compile_definitions(${target} PUBLIC INSTRSET=6)
         else()
             target_compile_options(${target} PUBLIC /arch:AVX2)

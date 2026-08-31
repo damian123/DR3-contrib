@@ -19,10 +19,15 @@ Optional CMake flags:
 - `-DDR3_BUILD_EXAMPLES=ON|OFF` (default ON)
 - `-DDR3_BUILD_TESTS=ON|OFF` (default ON)
 - `-DDR3_ISA=SSE2|SSE4.2|AVX2|AVX512` (default AVX2). `SSE4.2` upgrades
-  the 128-bit `DRC::VecD2D` path (VCL `INSTRSET >= 6`) while `SSE2`
+  the 128-bit `DRC::VecD2D` path to VCL `INSTRSET=6` while `SSE2`
   remains the fallback. The default VectorTest suite stays on AVX2
-  `VecD4D`. A separate `VectorTestSSE42` target is always compiled with
-  SSE4.2 flags.
+  `VecD4D`. With `DR3_ISA=SSE4.2`, a separate `VectorTestSSE42` target
+  checks that VCL selects exactly `INSTRSET=6` and rejects AVX compiler
+  macros. GCC and Clang use `-msse4.2`. MSVC x64 keeps its normal SSE2
+  optimizer baseline and uses explicit VCL SSE4.2 intrinsics; it does not
+  use `/arch:AVX`. CI compiles and runs this configuration with both GCC
+  and MSVC. Hosted runners do not emulate an SSE4.2-only processor, so
+  that run is a build-baseline check rather than a hardware qualification.
 - `-DDR3_ENABLE_SANITIZERS=ON` (GCC/Clang AddressSanitizer and
   UndefinedBehaviorSanitizer)
 
