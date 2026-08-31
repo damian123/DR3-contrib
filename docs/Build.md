@@ -30,9 +30,6 @@ and MSVC, plus `TestBasicPortable.cpp`. Additional VectorTest files are
 compiled on MSVC only; `TestCurve.cpp` is omitted because
 `ExampleVectors/curve.h` is not in the repository.
 
-Two pairwise transform-reduce cases currently crash under GCC/Clang and
-are excluded from the portable CTest filter.
-
 ```
 cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Release \
@@ -48,4 +45,3 @@ Example-only configure path:
 ```
 cmake -S . -B build -DDR3_BUILD_TESTS=OFF
 ```
-

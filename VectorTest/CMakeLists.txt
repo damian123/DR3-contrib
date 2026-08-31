@@ -38,12 +38,12 @@ if(MSVC)
     target_compile_options(VectorTest PRIVATE /EHsc)
 endif()
 
-# Existing VectorTest cases that crash or fail outside the original
-# MSVC/Release configuration. Keep them in the tree; do not run them
-# in the portable CTest filter. Use add_test rather than
+# An existing VectorTest case fails outside the original MSVC/Release
+# configuration. Keep it in the tree; do not run it in the portable
+# CTest filter. Use add_test rather than
 # gtest_discover_tests: CMake 4.x POST_BUILD discovery fails on
 # Windows when the binary is in a multi-config output directory.
 set(DR3_GTEST_EXCLUDE
-    "-TestAccumulator.simple_pairwise_transformReduce:TestAccumulator.bivariate_pairwise_transformReduce:TestFilterSelect.ApplyFilterB")
+    "-TestFilterSelect.ApplyFilterB")
 
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
