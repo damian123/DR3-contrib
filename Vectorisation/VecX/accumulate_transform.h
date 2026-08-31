@@ -658,6 +658,12 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyAccumulate2UR_X_Accum( ACCUM
 
 
 
+// Pairwise reduction consumes a short prefix before recursively processing
+// power-of-two blocks. That prefix can move the block pointer away from its
+// allocator-provided alignment, so these block loads must be unaligned loads.
+// Scope the token substitution to the pairwise implementations below.
+#define load_a load
+
 //experimental pairwise unrolled version  avx512
 template<  template <class> typename VEC_TYPE, typename INS_VEC, typename OP>
 typename InstructionTraits<INS_VEC>::FloatType ApplyAccumulate2UR_X_pairwise(const VEC_TYPE<INS_VEC>& rhs1, OP& oper)
@@ -893,7 +899,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 
 		INS_VEC RHS0 = rhs1.getScalarValue();
 		auto res = tfrm(RHS0);
-		return RHS0[0];
+		return res[0];
 	}
 
 	long sz = static_cast<long>(rhs1.size());
@@ -1400,6 +1406,8 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 	return accum_over_all_blocks + whole_reg_sum;
 
 }
+
+#undef load_a
 
 
 

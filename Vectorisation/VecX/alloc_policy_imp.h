@@ -13,6 +13,7 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <string>
 #include <vector>
 #include <unordered_map>
 
@@ -74,9 +75,13 @@ public:
 	void free(T* pToFree)
 	{
 		//typically this should be next one down from top of stack
-		if ((m_pos <= 0) || (nullptr == pToFree))
+		if (nullptr == pToFree)
 		{
 			return;
+		}
+		if (m_pos <= 0)
+		{
+			throw std::logic_error("attempted to return a block to an empty allocator pool");
 		}
 
 		if (m_memPool[m_pos - 1] == pToFree)
@@ -104,6 +109,7 @@ public:
 				return;
 			}
 		}
+		throw std::logic_error("attempted to return a block that is not live in its allocator pool");
 
 	}
 
@@ -273,7 +279,9 @@ public:
 		{
 			if (item.second->liveCount() != 0)
 			{
-				throw std::logic_error("cannot clean allocator pools while blocks are live");
+				throw std::logic_error("cannot clean allocator pool of logical size "
+					+ std::to_string(item.first) + " while "
+					+ std::to_string(item.second->liveCount()) + " blocks are live");
 			}
 		}
 		for (auto& item : map)

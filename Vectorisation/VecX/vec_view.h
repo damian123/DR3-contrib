@@ -318,6 +318,12 @@ public:
 	inline void setSizeAndPad(size_t SZ)
 	{
 		int sz = static_cast<int>(SZ);
+		if (sz == 0)
+		{
+			m_fillSize = 0;
+			m_last = 0;
+			return;
+		}
 		typename InstructionTraits<INS_VEC>::FloatType* ttt = nullptr;
 		m_fillSize = getAllignedSize(sz, ttt);
 		int cnt = sz;
@@ -538,5 +544,4 @@ VecView<INS_VEC>  mergeToViews(VecView<INS_VEC>& lhs, VecView<INS_VEC>& rhs)
 	rhs.write(ret);
 	return ret;
 }
-
 

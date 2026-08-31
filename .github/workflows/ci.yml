@@ -63,6 +63,23 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --timeout 120
 
+  sse42:
+    name: ubuntu gcc Release SSE4.2 VecD2D
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cmake -S . -B build-sse42 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDR3_BUILD_TESTS=ON \
+            -DDR3_BUILD_EXAMPLES=OFF \
+            -DDR3_ISA=SSE4.2
+      - name: Build SSE4.2 tests
+        run: cmake --build build-sse42 --config Release --target VectorTestSSE42
+      - name: Test
+        run: ctest --test-dir build-sse42 -C Release -R SSE42 --output-on-failure --timeout 60
+
   sanitizers:
     name: ubuntu gcc Debug ASan/UBSan
     runs-on: ubuntu-latest
@@ -81,7 +98,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Debug --output-on-failure --timeout 180
         env:
-          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1
 
   thread-sanitizer:
@@ -98,11 +115,11 @@ jobs:
             -DDR3_ENABLE_TSAN=ON \
             -DDR3_ISA=AVX2
       - name: Build concurrency targets
-        run: cmake --build build-tsan --target VectorTest LatticeTest --config Debug
+        run: cmake --build build-tsan --target VectorTest LatticeTest AdvancedNumericsTest --config Debug
       - name: Test concurrency under TSan
         run: |
-          ctest --test-dir build-tsan -C Debug \
-            -R 'ConcurrencySafety|ParallelAllocator|ParallelExecutor' \
+          setarch x86_64 -R ctest --test-dir build-tsan -C Debug \
+            -R 'ConcurrencySafety|ParallelAllocator|ParallelExecutor|CurvePlan' \
             --output-on-failure --timeout 180
         env:
           TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
@@ -120,9 +137,29 @@ jobs:
             -DDR3_BUILD_EXAMPLES=OFF \
             -DDR3_ISA=AVX2
       - name: Build concurrency targets
-        run: cmake --build build-stress --target VectorTest LatticeTest --config Release
+        run: cmake --build build-stress --target VectorTest LatticeTest AdvancedNumericsTest --config Release
       - name: Repeat concurrency regressions
         run: |
           ctest --test-dir build-stress -C Release \
-            -R 'ConcurrencySafety|ParallelAllocator|ParallelExecutor' \
+            -R 'ConcurrencySafety|ParallelAllocator|ParallelExecutor|CurvePlan' \
             --repeat until-fail:50 --output-on-failure --timeout 180
+
+  numerics-benchmark:
+    name: ubuntu gcc Release numerical benchmark telemetry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cmake -S . -B build-bench \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDR3_BUILD_TESTS=OFF \
+            -DDR3_BUILD_EXAMPLES=OFF \
+            -DDR3_BENCHMARKS=ON \
+            -DDR3_ISA=AVX2
+      - name: Build benchmark
+        run: cmake --build build-bench --target NumericsBenchmark --config Release
+      - name: Validate and record benchmark telemetry
+        run: |
+          ./build-bench/lattice/NumericsBenchmark --self-test
+          ./build-bench/lattice/NumericsBenchmark --quick

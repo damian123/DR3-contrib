@@ -1,5 +1,8 @@
 #include "parallel_executor.h"
+#include "american_pde.h"
+#include "batched_pde.h"
 #include "tree_pricers.h"
+#include "../../Vectorisation/Curves/curve.h"
 
 #include <gtest/gtest.h>
 
@@ -9,6 +12,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <thread>
+#include <exception>
 #include <vector>
 
 namespace
@@ -75,6 +79,38 @@ std::vector<double> serialPdePrices(const std::vector<VanillaOption>& instrument
         prices.push_back(dr3::lattice::europeanPdePrice(instrument, config).price);
     }
     return prices;
+}
+
+template <typename Job>
+void runConcurrentJobs(std::size_t jobCount, Job&& job)
+{
+    StartGate start(jobCount);
+    std::vector<std::thread> workers;
+    std::vector<std::exception_ptr> exceptions(jobCount);
+    std::vector<std::atomic<unsigned int>> completions(jobCount);
+    for (auto& completion : completions) completion.store(0, std::memory_order_relaxed);
+    workers.reserve(jobCount);
+    for (std::size_t index = 0; index < jobCount; ++index)
+    {
+        workers.emplace_back([&, index]
+        {
+            try
+            {
+                start.wait();
+                job(index);
+                completions[index].fetch_add(1, std::memory_order_relaxed);
+            }
+            catch (...)
+            {
+                exceptions[index] = std::current_exception();
+            }
+        });
+    }
+    for (auto& worker : workers) worker.join();
+    for (const auto& exception : exceptions)
+        if (exception) std::rethrow_exception(exception);
+    for (const auto& completion : completions)
+        EXPECT_EQ(completion.load(std::memory_order_relaxed), 1u);
 }
 
 } // namespace
@@ -212,6 +248,63 @@ TEST(ConcurrencySafety, IndependentEuropeanPdeMatchesSerial)
         });
     }
     for (auto& worker : workers) worker.join();
+    EXPECT_EQ(concurrent, serial);
+}
+
+TEST(ConcurrencySafety, ImmutableCurveReadsMatchSerial)
+{
+    const dr3::numerics::Curve<double> curve(
+        {0.0, 0.5, 1.0, 2.0, 5.0}, {0.01, 0.012, 0.015, 0.02, 0.03});
+    const std::vector<double> queries{-0.5, 0.0, 0.25, 0.75, 1.5, 3.0, 5.0, 7.0};
+    std::vector<double> serial(queries.size()), concurrent(queries.size());
+    for (std::size_t index = 0; index < queries.size(); ++index)
+        serial[index] = curve.evaluate(queries[index]);
+    runConcurrentJobs(queries.size(), [&](std::size_t index)
+    {
+        concurrent[index] = curve.evaluate(queries[index]);
+    });
+    EXPECT_EQ(concurrent, serial);
+}
+
+TEST(ConcurrencySafety, IndependentAmericanPdeMatchesSerial)
+{
+    constexpr std::size_t jobCount = 6;
+    auto instruments = options(jobCount);
+    for (auto& instrument : instruments) instrument.type = OptionType::Put;
+    const PdeConfig settings{PdeScheme::CrankNicolsonRannacher,
+                             101, 100, 0.0, 400.0};
+    std::vector<double> serial(jobCount), concurrent(jobCount);
+    for (std::size_t index = 0; index < jobCount; ++index)
+    {
+        const auto result = dr3::lattice::americanPdePrice(instruments[index], settings);
+        ASSERT_TRUE(result.converged);
+        serial[index] = result.price;
+    }
+    runConcurrentJobs(jobCount, [&](std::size_t index)
+    {
+        const auto result = dr3::lattice::americanPdePrice(instruments[index], settings);
+        if (!result.converged) throw std::runtime_error("concurrent American PDE did not converge");
+        concurrent[index] = result.price;
+    });
+    EXPECT_EQ(concurrent, serial);
+}
+
+TEST(ConcurrencySafety, IndependentBatchedPdeMatchesSerial)
+{
+    constexpr std::size_t jobCount = 5;
+    std::vector<std::vector<VanillaOption>> batches;
+    std::vector<std::vector<double>> serial(jobCount), concurrent(jobCount);
+    for (std::size_t job = 0; job < jobCount; ++job)
+    {
+        batches.push_back(options(1 + job));
+        serial[job] = dr3::lattice::batchedEuropeanPdePrices(
+            batches[job], pdeConfig()).prices;
+    }
+    runConcurrentJobs(jobCount, [&](std::size_t index)
+    {
+        concurrent[index] = dr3::lattice::batchedEuropeanPdePrices(
+            batches[index], pdeConfig()).prices;
+    });
     EXPECT_EQ(concurrent, serial);
 }
 

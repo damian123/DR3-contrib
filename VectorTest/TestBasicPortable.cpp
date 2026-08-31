@@ -9,6 +9,7 @@
 #include "dr3TestUtil.h"
 
 #include <numeric>
+#include <utility>
 #include <vector>
 
 TEST(TestBasicPortable, MakeAndIndex)
@@ -69,4 +70,33 @@ TEST(TestBasicPortable, TransformLambda)
     EXPECT_EQ(doubled.size(), 5);
     EXPECT_NUMERIC_EQ(doubled[0], asNumber(2.0));
     EXPECT_NUMERIC_EQ(doubled[4], asNumber(10.0));
+}
+
+TEST(TestBasicPortable, BooleanVectorCopyMovePreservesPaddedOwnership)
+{
+    const int size = static_cast<int>(VecXX::INS::size()) + 1;
+    std::vector<Numeric> input(static_cast<size_t>(size));
+    std::iota(input.begin(), input.end(), asNumber(0.0));
+    VecXX values(input);
+
+    VecBL original = values < asNumber(3.0);
+    VecBL copied(original);
+    VecBL copyAssigned(true);
+    copyAssigned = original;
+    VecBL moved(std::move(copied));
+    VecBL moveAssigned(false);
+    moveAssigned = std::move(copyAssigned);
+
+    for (int index = 0; index < size; ++index)
+    {
+        const bool expected = index < 3;
+        EXPECT_EQ(original[index], expected);
+        EXPECT_EQ(moved[index], expected);
+        EXPECT_EQ(moveAssigned[index], expected);
+    }
+
+    VecBL scalar(true);
+    VecBL scalarCopy(scalar);
+    EXPECT_TRUE(scalarCopy.isScalar());
+    EXPECT_TRUE(scalarCopy.getScalarValue());
 }

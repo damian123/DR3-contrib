@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <stdexcept>
 #include "alloc_policy.h"
 #include "apply_operation.h"
 
@@ -20,6 +21,14 @@ template <typename INS_VEC>
 class VecBool
 {
 private:
+	static size_t checkedSize(int sz)
+	{
+		if (sz < 0)
+		{
+			throw std::invalid_argument("VecBool size must be non-negative");
+		}
+		return static_cast<size_t>(sz);
+	}
 
 
 	typename InstructionTraits<INS_VEC>::FloatType* m_pData;
@@ -35,9 +44,16 @@ public:
 		
 	}
 
-	VecBool(int sz) :m_size(sz), m_implSize(sz), m_scalarVal(0), m_isScalar(false)
+	explicit VecBool(int sz)
+		: m_pData(nullptr), m_size(checkedSize(sz)),
+		  m_implSize(m_size), m_scalarVal(false), m_isScalar(false)
 	{
-		allocPool(m_implSize, m_pData);
+		if (sz > 0)
+		{
+			allocPool(m_implSize, m_pData);
+			std::fill_n(m_pData, m_implSize,
+				InstructionTraits<INS_VEC>::nullValue);
+		}
 	}
 
 
@@ -45,18 +61,19 @@ public:
 	{
 		if (m_pData != nullptr)
 		{
-			freePool(m_size, m_pData);
+			freePool(m_implSize, m_pData);
 		}
 	}
 
 	VecBool(const VecBool& rhs)
+		: m_pData(nullptr), m_size(rhs.m_size), m_implSize(rhs.m_size),
+		  m_scalarVal(rhs.m_scalarVal), m_isScalar(rhs.m_isScalar)
 	{
-		m_isScalar = rhs.m_isScalar;
-		m_scalarVal = rhs.m_scalarVal;
-		m_size = rhs.m_size;
-		m_implSize = m_size;
-		allocPool(m_implSize, m_pData);
-		std::copy(rhs.m_pData, rhs.m_pData + m_implSize, m_pData);
+		if (!m_isScalar && m_size > 0)
+		{
+			allocPool(m_implSize, m_pData);
+			std::copy(rhs.m_pData, rhs.m_pData + m_implSize, m_pData);
+		}
 	}
 
 
@@ -64,39 +81,41 @@ public:
 	{
 		if (&rhs != this)
 		{
-			m_isScalar = rhs.m_isScalar;
-			m_scalarVal = rhs.m_scalarVal;
-			m_size = rhs.m_size;
-			m_implSize = rhs.m_implSize;
-			std::copy(rhs.m_pData, rhs.m_pData + m_implSize, m_pData);
+			VecBool replacement(rhs);
+			swap(replacement);
 		}
 		return *this;
 	}
 
 
 	VecBool(VecBool&& rhs) noexcept
+		: m_pData(rhs.m_pData), m_size(rhs.m_size), m_implSize(rhs.m_implSize),
+		  m_scalarVal(rhs.m_scalarVal), m_isScalar(rhs.m_isScalar)
 	{
-		m_isScalar = rhs.m_isScalar;
-		m_scalarVal = rhs.m_scalarVal;
-		m_implSize = 0;
-		m_implSize= rhs.m_implSize;
-		m_size = rhs.size();
-		m_pData = nullptr;
-		*this = std::move(rhs);
+		rhs.m_pData = nullptr;
+		rhs.m_size = 0;
+		rhs.m_implSize = 0;
+		rhs.m_scalarVal = false;
+		rhs.m_isScalar = true;
 	}
 
 	VecBool& operator=(VecBool&& rhs) noexcept
 	{
 		if (&rhs != this)
 		{
-			std::swap(m_implSize, rhs.m_implSize);
-			std::swap(m_size, rhs.m_size);
-			std::swap(m_pData, rhs.m_pData);
-			std::swap(m_scalarVal,rhs.m_scalarVal);
-			std::swap(m_isScalar, rhs.m_isScalar);
-			
+			swap(rhs);
 		}
 		return *this;
+	}
+
+	void swap(VecBool& rhs) noexcept
+	{
+		using std::swap;
+		swap(m_pData, rhs.m_pData);
+		swap(m_size, rhs.m_size);
+		swap(m_implSize, rhs.m_implSize);
+		swap(m_scalarVal, rhs.m_scalarVal);
+		swap(m_isScalar, rhs.m_isScalar);
 	}
 
 
@@ -138,4 +157,3 @@ public:
 	}
 
 };
-

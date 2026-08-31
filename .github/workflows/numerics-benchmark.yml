@@ -1,0 +1,35 @@
+name: Numerical benchmark telemetry
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  telemetry:
+    # Hosted-runner timings are uploaded for observation and are not a merge gate.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AVX2 release telemetry
+        run: >-
+          cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release
+          -DDR3_ISA=AVX2 -DDR3_BUILD_TESTS=OFF -DDR3_BUILD_EXAMPLES=OFF
+          -DDR3_BUILD_BENCHMARKS=ON
+      - name: Build benchmark executable
+        run: cmake --build build-bench --parallel 2 --target dr3_numerical_benchmarks
+      - name: Validate every kernel
+        run: ./build-bench/advanced/dr3_numerical_benchmarks --self-test
+      - name: Collect versioned JSON
+        run: >-
+          ./build-bench/advanced/dr3_numerical_benchmarks --warmups 2 --samples 7
+          --output dr3-numerical-benchmarks.json
+      - name: Upload telemetry
+        uses: actions/upload-artifact@v4
+        with:
+          name: dr3-numerical-benchmarks-${{ github.sha }}
+          path: dr3-numerical-benchmarks.json
+          if-no-files-found: error

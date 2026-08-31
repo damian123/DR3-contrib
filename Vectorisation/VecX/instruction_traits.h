@@ -10,7 +10,9 @@
 * Apache License version 2.0 or later.
 *****************************************************************************/
 #pragma once
+#ifdef _MSC_VER
 #pragma warning(suppress:4984)
+#endif
 
 #include "vec.h"
 #include "vec_double.h"
@@ -298,6 +300,5 @@ inline  auto boolConvert(typename  InstructionTraits<TRAIT>::MemBoolType regVal)
 		return  boolCompactConvert(regVal);
 	}
 }
-
 
 

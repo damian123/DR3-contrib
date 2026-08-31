@@ -4,6 +4,7 @@
 
 /build
 /build_vcc
+/build-*/
 
 /packages
 /.vs/DRCubed/v16/TestStore/0

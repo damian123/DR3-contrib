@@ -20,9 +20,13 @@ FetchContent_MakeAvailable(googletest)
 set(DR3_VECTOR_TEST_PORTABLE_SOURCES
     TestBasicPortable.cpp
     TestConcurrentAllocator.cpp
+    TestCurve.cpp
     TestAccumulator.cpp
     TestAllocator.cpp
     TestFilterSelect.cpp
+    TestForwardAD.cpp
+    TestSimilarity.cpp
+    TestNeuralKernels.cpp
     testNamespace.cpp
     test_precise_accumulation.cpp
 )
@@ -36,19 +40,47 @@ target_include_directories(VectorTest PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 dr3_apply_isa(VectorTest)
 
 if(MSVC)
-    target_compile_options(VectorTest PRIVATE /EHsc)
+    target_compile_options(VectorTest PRIVATE /W4 /EHsc)
+else()
+    target_compile_options(VectorTest PRIVATE -Wall -Wextra)
 endif()
 
-# Existing VectorTest cases that crash or fail outside the original
-# MSVC/Release configuration. Keep them in the tree; do not run them
-# in the portable CTest filter. Use add_test rather than
-# gtest_discover_tests: CMake 4.x POST_BUILD discovery fails on
-# Windows when the binary is in a multi-config output directory.
-set(DR3_GTEST_EXCLUDE
-    "-TestAccumulator.simple_pairwise_transformReduce:TestAccumulator.bivariate_pairwise_transformReduce:TestFilterSelect.ApplyFilterB")
-
-add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
+# Use add_test rather than gtest_discover_tests: CMake 4.x POST_BUILD
+# discovery fails on Windows when the binary is in a multi-config output
+# directory. The complete portable suite is a required gate.
+add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest>)
 add_test(NAME ParallelAllocator
     COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ParallelAllocator.*)
 add_test(NAME ConcurrencySafetyVector
     COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ConcurrencySafety.*)
+add_test(NAME ForwardAD
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ForwardAD.*)
+add_test(NAME Curve
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Curve.*)
+add_test(NAME CurveSensitivity
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=CurveSensitivity.*)
+add_test(NAME Similarity
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=TestSimilarity.*)
+add_test(NAME NeuralSoftmax
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Softmax.*)
+add_test(NAME NeuralLayerNorm
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=LayerNorm.*)
+add_test(NAME NeuralRMSNorm
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=RMSNorm.*)
+add_test(NAME NeuralActivation
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Activation.*)
+
+# Keep the 128-bit VecD2D SSE4.2 path in its own translation unit. The
+# primary VectorTest target continues to exercise the AVX2 VecD4D API.
+add_executable(VectorTestSSE42 TestSSE42.cpp)
+target_link_libraries(VectorTestSSE42 PRIVATE DR3::Vectorisation GTest::gtest GTest::gtest_main)
+target_include_directories(VectorTestSSE42 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+dr3_apply_sse42(VectorTestSSE42)
+
+if(MSVC)
+    target_compile_options(VectorTestSSE42 PRIVATE /W4 /EHsc)
+else()
+    target_compile_options(VectorTestSSE42 PRIVATE -Wall -Wextra)
+endif()
+
+add_test(NAME VectorTestSSE42 COMMAND $<TARGET_FILE:VectorTestSSE42>)

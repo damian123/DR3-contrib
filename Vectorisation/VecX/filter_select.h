@@ -199,7 +199,6 @@ VecView<INS_VEC>  ApplyFilterImpl_EXt_STRD(OP& condition, const VEC_TYPE<INS_VEC
 
 	for (; i < sz; i += step)
 	{
-		using Float = typename InstructionTraits<INS_VEC>::FloatType;
 		using boolVType = typename InstructionTraits<INS_VEC>::BoolType;
 		boolVType		 COND;
 
@@ -601,4 +600,3 @@ void ApplyUnitaryOperationWrite(OP& oper, const VecView<INS_VEC>& rhs, Vec<INS_V
 	}
 
 }
-

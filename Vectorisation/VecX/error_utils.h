@@ -15,6 +15,8 @@
 #include "span.h"
 #include <exception>
 #include <cassert>
+#include <cstddef>
+#include <stdexcept>
 
 //ignore for unused from sutter
 template<class T> void ignore(const T&) { }
@@ -42,7 +44,8 @@ bool check_pair(const VEC& lhs, const VEC& rhs)
 	check_vector(lhs);
 	check_vector(rhs);
 
-	if ( (lhs.size() == rhs.size() ) && (lhs.size() > 0 ) )
+	if ((static_cast<std::size_t>(lhs.size()) == static_cast<std::size_t>(rhs.size()))
+		&& (lhs.size() > 0))
 	{
 		return true;
 	}
@@ -54,9 +57,7 @@ bool check_pair(const VEC& lhs, const VEC& rhs)
 	}
 	else
 	{
-		
-		assert(false);
-		throw std::runtime_error("bad vector size");
+		throw std::invalid_argument("non-scalar vector logical sizes must match");
 	}
 }
 
@@ -66,7 +67,7 @@ bool check_pair_different_type(const VEC1& lhs, const VEC2& rhs)
 	check_vector(lhs);
 	check_vector(rhs);
 
-	if (lhs.size() == rhs.size())
+	if (static_cast<std::size_t>(lhs.size()) == static_cast<std::size_t>(rhs.size()))
 		return true;
 	if (rhs.isScalar() || lhs.isScalar())
 	{
@@ -74,9 +75,7 @@ bool check_pair_different_type(const VEC1& lhs, const VEC2& rhs)
 	}
 	else
 	{
-		//std::
-		assert(false);
-		throw std::runtime_error("bad vector size");
+		throw std::invalid_argument("non-scalar vector logical sizes must match");
 	}
 }
 

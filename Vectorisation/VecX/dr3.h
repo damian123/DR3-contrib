@@ -17,6 +17,9 @@
 #include "binned_accumulator.h"
 
 #include "target_name_space.h"
+#include "kmeans.h"
+#include "preprocessing.h"
+#include "quantization.h"
 
 
 #ifdef _MSC_VER
@@ -1013,7 +1016,6 @@ typename InstructionTraits<INS_VEC>::FloatType pairwise_transformReduce(const Ve
 {
 	return  ApplyTransformAccumulate2UR_X_pairwise(lhs,rhs, tfrm, oper);
 }
-
 
 
 

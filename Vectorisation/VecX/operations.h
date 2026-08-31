@@ -542,7 +542,7 @@ Vec<INS_VEC> FMA(const Vec<INS_VEC>& lhs, typename InstructionTraits<INS_VEC>::F
 }
 
 
-/////////////////////////////////////////////////////////// AAD operations ///////////////////////////////////////////////
+//////////////////////////////////////////////// forward AD operations ///////////////////////////////////////////////
 template<typename INS_VEC>
 VecBool<INS_VEC> operator > (const VecD<INS_VEC>& lhs, const VecD<INS_VEC>& rhs)
 {
@@ -706,7 +706,7 @@ VecD<INS_VEC> operator - (const VecD<INS_VEC>& lhs, typename InstructionTraits<I
 template<typename INS_VEC>
 VecD<INS_VEC> operator - (typename InstructionTraits<INS_VEC>::FloatType lhs, const VecD<INS_VEC>& rhs)
 {
-	return VecD<INS_VEC>(lhs -rhs.value() , rhs.derivative());
+	return VecD<INS_VEC>(lhs - rhs.value(), -rhs.derivative());
 }
 
 template<typename INS_VEC>
@@ -820,21 +820,22 @@ VecD<INS_VEC>log(const VecD<INS_VEC>& rhs)
 }
 
 template<typename INS_VEC>
-Vec<INS_VEC>abs(const VecD<INS_VEC>& rhs)
+VecD<INS_VEC>abs(const VecD<INS_VEC>& rhs)
 {
-	return VecD<INS_VEC>(abs(rhs.value()), abs(rhs.derivative() ) );
+	return VecD<INS_VEC>(abs(rhs.value()),
+		select(rhs.value() >= 0.0, rhs.derivative(), -rhs.derivative()));
 }
 
 template<typename INS_VEC>
 VecD<INS_VEC>floor(const VecD<INS_VEC>& rhs)
 {
-	return VecD<INS_VEC>(floor(rhs.value()), floor(rhs.derivative()));
+	return VecD<INS_VEC>::makeDVecZero(floor(rhs.value()));
 }
 
 template<typename INS_VEC>
 VecD<INS_VEC>ceil(const VecD<INS_VEC>& rhs)
 {
-	return VecD<INS_VEC>(floor(rhs.value()), floor(rhs.derivative()));
+	return VecD<INS_VEC>::makeDVecZero(ceil(rhs.value()));
 }
 
 
@@ -853,21 +854,19 @@ VecD<INS_VEC>max(const  VecD<INS_VEC>& lhs, const VecD<INS_VEC>& rhs)
 template<typename INS_VEC>
 VecD<INS_VEC>max(const VecD<INS_VEC>& lhs, typename InstructionTraits<INS_VEC>::FloatType rhs)
 {
-	return VecD<INS_VEC>(max(lhs.value(), rhs), select((lhs > rhs), (lhs.derivative(), 0.0)));
+	return VecD<INS_VEC>(max(lhs.value(), rhs), select(lhs > rhs, lhs.derivative(), 0.0));
 }
 
 template<typename INS_VEC>
 VecD<INS_VEC>max(typename InstructionTraits<INS_VEC>::FloatType lhs, const VecD<INS_VEC>& rhs)
 {
-	return VecD<INS_VEC>(max(lhs, rhs.value), select( (lhs > rhs), 0.0,rhs.derivative()));
+	return VecD<INS_VEC>(max(lhs, rhs.value()), select(lhs > rhs, 0.0, rhs.derivative()));
 }
 
 
 template<typename INS_VEC>
 VecD<INS_VEC>min(const VecD<INS_VEC>& lhs, const VecD<INS_VEC>& rhs)
 {
-	return ApplyBinaryOperation<INS_VEC, DR_CUBED::_min<INS_VEC> >(lhs, rhs);
-
 	const VecBool<INS_VEC> cond = (lhs.value() < rhs.value());
 	const Vec<INS_VEC> lhsD = lhs.derivative();
 	const Vec<INS_VEC> rhsD = rhs.derivative();
@@ -880,14 +879,13 @@ VecD<INS_VEC>min(const VecD<INS_VEC>& lhs, const VecD<INS_VEC>& rhs)
 template<typename INS_VEC>
 VecD<INS_VEC>min(const VecD<INS_VEC>& lhs, typename InstructionTraits<INS_VEC>::FloatType rhs)
 {
-	return VecD<INS_VEC>(min(lhs.value(), rhs), select((lhs > rhs), (lhs.derivative(), 0.0)));
+	return VecD<INS_VEC>(min(lhs.value(), rhs), select(lhs < rhs, lhs.derivative(), 0.0));
 }
 
 template<typename INS_VEC>
 VecD<INS_VEC>min(typename InstructionTraits<INS_VEC>::FloatType lhs, const VecD<INS_VEC>& rhs)
 {
-	return VecD<INS_VEC>(min(lhs.value(), rhs), select((lhs < rhs), (lhs.derivative(), 0.0)));
+	return VecD<INS_VEC>(min(lhs, rhs.value()), select(lhs < rhs, 0.0, rhs.derivative()));
 }
-
 
 

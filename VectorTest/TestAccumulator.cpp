@@ -526,6 +526,17 @@ TEST(TestAccumulator, simple_pairwise_transformReduce)
 
 }
 
+TEST(TestAccumulator, scalar_pairwise_transformReduce_applies_transform)
+{
+	VecXX scalar(asNumber(3.0));
+	auto sum = [](auto lhs, auto rhs) { return lhs + rhs; };
+	auto square = [](auto value) { return value * value; };
+
+	EXPECT_NUMERIC_EQ(
+		ApplyTransformAccumulate2UR_X_pairwise(scalar, square, sum),
+		asNumber(9.0));
+}
+
 
 
 void evalTransformAccumulateUR_X_bivariate_pairwise(int startLen, int endLen)
@@ -580,5 +591,4 @@ TEST(TestAccumulator, bivariate_pairwise_transformReduce)
 	evalTransformAccumulateUR_X_bivariate_pairwise(159, 159);
 
 }
-
 

@@ -12,6 +12,9 @@
 #pragma once
 #include <algorithm>
 #include <iterator>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 #include "vec.h"
 #include "vec_bool.h"
 
@@ -21,6 +24,29 @@ template <typename INS_VEC>
 class VecD
 {
 private:
+    static int checkedSize(size_t size)
+    {
+        if (size == 0)
+        {
+            throw std::invalid_argument("a forward AD vector must not be empty");
+        }
+        return static_cast<int>(size);
+    }
+
+    void validateShape() const
+    {
+        if (val.isScalar() != deriv.isScalar())
+        {
+            throw std::invalid_argument(
+                "forward AD primal and derivative must both be scalar or both be vectors");
+        }
+        if (!val.isScalar() && val.size() != deriv.size())
+        {
+            throw std::invalid_argument(
+                "forward AD primal and derivative logical sizes must match");
+        }
+    }
+
 public:
 
 	Vec< INS_VEC> val;
@@ -54,6 +80,7 @@ public:
 
 	static VecD< INS_VEC> makeDVecOnes(const typename InstructionTraits<INS_VEC>::FloatType&  value, int sz)
 	{
+		if (sz <= 0) throw std::invalid_argument("a forward AD vector must not be empty");
 		Vec< INS_VEC> values(value, sz);
 		Vec< INS_VEC> ones(InstructionTraits<INS_VEC>::oneValue, sz);
 		return VecD(values, ones);
@@ -61,23 +88,10 @@ public:
 
 	static VecD< INS_VEC> makeDVecZero(const typename InstructionTraits<INS_VEC>::FloatType&  value, int sz)
 	{
+		if (sz <= 0) throw std::invalid_argument("a forward AD vector must not be empty");
 		Vec< INS_VEC> values(value, sz);
 		Vec< INS_VEC> zeros(InstructionTraits<INS_VEC>::nullValue, sz);
 		return VecD(values, zeros);
-	}
-
-	static VecD< INS_VEC> makeDVecOnesV(const typename InstructionTraits<INS_VEC>::FloatType&  value, int sz)
-	{
-		Vec< INS_VEC> values(value, sz);
-		std::vector< typename InstructionTraits<INS_VEC>::FloatType> ones(value.size(), InstructionTraits<INS_VEC>::oneValue);
-		return VecD(values, ones);
-	}
-
-	static VecD< INS_VEC> makeDVecZeroV(const typename InstructionTraits<INS_VEC>::FloatType&  value, int sz)
-	{
-		Vec< INS_VEC> values(value, sz);
-		std::vector< typename InstructionTraits<INS_VEC>::FloatType> nulls(value.size(), InstructionTraits<INS_VEC>::nullValue);
-		return VecD(values, nulls);
 	}
 
 	explicit VecD(typename InstructionTraits<INS_VEC>::FloatType scalarVal)
@@ -102,32 +116,32 @@ public:
 
 
 	VecD(const Vec<INS_VEC>&  value, const Vec<INS_VEC>&  derivative) : val(value), deriv(derivative)
-	{}
+	{
+		validateShape();
+	}
 
 
 	VecD(Vec<INS_VEC>&&  value, Vec<INS_VEC>&&  derivative) :
 		val(std::forward< Vec<INS_VEC>>(value)),
 		deriv(std::forward<Vec<INS_VEC>>(derivative))
-	{}
-
-
-	VecD(Vec<INS_VEC>&&  value) :
-		val(std::forward< Vec<INS_VEC>>(value))
 	{
-		if (!val.isScalar())
-		{
-			deriv(InstructionTraits<INS_VEC>::nullVal, value.size());
-		}
-		else
-		{
-			deriv(InstructionTraits<INS_VEC>::nullVal);
-		}
+		validateShape();
+	}
+
+
+	VecD(Vec<INS_VEC>&&  value) : val(std::forward< Vec<INS_VEC>>(value)),
+		deriv(val.isScalar()
+			? Vec<INS_VEC>(InstructionTraits<INS_VEC>::nullValue)
+			: Vec<INS_VEC>(InstructionTraits<INS_VEC>::nullValue, val.size()))
+	{
+		validateShape();
 	}
 
 
 	VecD(Vec<INS_VEC>&&  value, const Vec<INS_VEC>&  d) :
 		val(std::forward< Vec<INS_VEC>>(value)), deriv(d)
 	{
+		validateShape();
 	}
 
 
@@ -138,9 +152,11 @@ public:
 	}
 	
 
-	explicit VecD(size_t sz) :val(sz), deriv(sz)
+	explicit VecD(size_t sz)
+		: val(InstructionTraits<INS_VEC>::nullValue, checkedSize(sz)),
+		  deriv(InstructionTraits<INS_VEC>::nullValue, checkedSize(sz))
 	{
-
+		validateShape();
 	}
 
 
@@ -238,3 +254,14 @@ VecD<INS_VEC> C(const Vec<INS_VEC>& rhs)
 	return VecD<INS_VEC>::makeDVecZero(rhs);
 }
 
+template <typename INS_VEC>
+VecD<INS_VEC> D(const typename InstructionTraits<INS_VEC>::FloatType& value, int size)
+{
+	return VecD<INS_VEC>::makeDVecOnes(value, size);
+}
+
+template <typename INS_VEC>
+VecD<INS_VEC> C(const typename InstructionTraits<INS_VEC>::FloatType& value, int size)
+{
+	return VecD<INS_VEC>::makeDVecZero(value, size);
+}
