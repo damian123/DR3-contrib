@@ -9,7 +9,21 @@
 #include <functional>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
+#include <utility>
 #include <vector>
+
+using ForwardADValueAccess = decltype(std::declval<VecxD&>().value());
+using ForwardADDerivativeAccess = decltype(std::declval<VecxD&>().derivative());
+
+static_assert(std::is_same<ForwardADValueAccess, const VecXX&>::value,
+    "VecD value access must remain read-only");
+static_assert(std::is_same<ForwardADDerivativeAccess, const VecXX&>::value,
+    "VecD derivative access must remain read-only");
+static_assert(!std::is_assignable<ForwardADValueAccess, VecXX>::value,
+    "VecD callers must not replace only the value through its accessor");
+static_assert(!std::is_assignable<ForwardADDerivativeAccess, VecXX>::value,
+    "VecD callers must not replace only the derivative through its accessor");
 
 namespace {
 
@@ -296,6 +310,51 @@ TEST(ForwardAD, RejectsMismatchedLogicalSizes)
     EXPECT_THROW((void)(x - y), std::invalid_argument);
     EXPECT_THROW((void)(x * y), std::invalid_argument);
     EXPECT_THROW((void)(x / y), std::invalid_argument);
+}
+
+TEST(ForwardAD, ReplacementAPIsPreserveShapeInvariant)
+{
+    const std::vector<double> original_values = {1.0, 2.0, 3.0};
+    const std::vector<double> original_derivatives = {0.1, 0.2, 0.3};
+    VecxD value{VecXX(original_values), VecXX(original_derivatives)};
+
+    EXPECT_THROW(value.replaceValue(VecXX(std::vector<double>{4.0, 5.0})),
+        std::invalid_argument);
+    EXPECT_THROW(value.replaceDerivative(VecXX(std::vector<double>{0.4, 0.5})),
+        std::invalid_argument);
+    EXPECT_THROW(value.replaceDerivative(VecXX(1.0)), std::invalid_argument);
+    EXPECT_THROW(value.replaceValueAndDerivative(
+        VecXX(std::vector<double>{4.0, 5.0}),
+        VecXX(std::vector<double>{0.4, 0.5, 0.6})), std::invalid_argument);
+
+    expect_all(value.value(), original_values, 0.0);
+    expect_all(value.derivative(), original_derivatives, 0.0);
+
+    const std::vector<double> replacement_values = {4.0, 5.0, 6.0};
+    const std::vector<double> replacement_derivatives = {0.4, 0.5, 0.6};
+    value.replaceValue(VecXX(replacement_values));
+    value.replaceDerivative(VecXX(replacement_derivatives));
+    expect_all(value.value(), replacement_values, 0.0);
+    expect_all(value.derivative(), replacement_derivatives, 0.0);
+
+    const std::vector<double> resized_values = {7.0, 8.0};
+    const std::vector<double> resized_derivatives = {0.7, 0.8};
+    value.replaceValueAndDerivative(
+        VecXX(resized_values), VecXX(resized_derivatives));
+    expect_all(value.value(), resized_values, 0.0);
+    expect_all(value.derivative(), resized_derivatives, 0.0);
+
+    VecxD assigned{VecXX(original_values), VecXX(original_derivatives)};
+    assigned = value;
+    expect_all(assigned.value(), resized_values, 0.0);
+    expect_all(assigned.derivative(), resized_derivatives, 0.0);
+
+    VecxD scalar(2.0, 3.0);
+    EXPECT_THROW(scalar.replaceValue(VecXX(resized_values)), std::invalid_argument);
+    EXPECT_THROW(scalar.replaceDerivative(VecXX(resized_derivatives)),
+        std::invalid_argument);
+    EXPECT_DOUBLE_EQ(scalar.getScalarValue(), 2.0);
+    EXPECT_DOUBLE_EQ(scalar.getScalarDeriv(), 3.0);
 }
 
 TEST(ForwardAD, BlackScholesDeltaMatchesAnalytic)
