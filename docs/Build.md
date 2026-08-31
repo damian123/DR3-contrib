@@ -68,7 +68,7 @@ cmake --install build-package --config Release
 A consuming project can then use the versioned package and namespaced target:
 
 ```cmake
-find_package(DR3 0.1 CONFIG REQUIRED)
+find_package(DR3 0.2 CONFIG REQUIRED)
 target_link_libraries(my_target PRIVATE DR3::Vectorisation)
 ```
 
@@ -80,9 +80,11 @@ target_link_libraries(my_target PRIVATE DR3::Vectorisation)
 installs the headers needed transitively by that entry point, but standalone
 inclusion of every internal `VecX` header is not a compatibility promise.
 
-DR3 is still pre-1.0. Its CMake version file uses same-minor compatibility, so
-`0.1.x` packages can satisfy a `find_package(DR3 0.1 ...)` request; compatibility
-across different pre-1.0 minor versions is not implied.
+DR3 is still pre-1.0. This package carries the release label
+`0.2.0-alpha.1`; CMake's numeric package version is `0.2.0`. Its version file
+uses same-minor compatibility, so `0.2.x` packages can satisfy a
+`find_package(DR3 0.2 ...)` request; compatibility across different pre-1.0
+minor versions is not implied.
 
 The package exposes `DR3_BUILT_ISA` as informational metadata. Consumers must
 not change it; install another DR3 build to a separate prefix when a different

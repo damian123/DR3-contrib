@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.17)
 
-project(DR3 VERSION 0.1.3 LANGUAGES CXX)
+project(DR3 VERSION 0.2.0 LANGUAGES CXX)
+
+# CMake package version files accept numeric versions only. Keep the release
+# label separately so consumers and release tooling can distinguish this
+# pre-release from the historical v01.3-alpha tag.
+set(DR3_RELEASE_VERSION "0.2.0-alpha.1")
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(_DR3_BUILD_AUXILIARIES_DEFAULT OFF)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)

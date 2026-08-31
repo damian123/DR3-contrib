@@ -96,12 +96,13 @@ cmake --install build-package --config Release
 ```
 
 ```cmake
-find_package(DR3 0.1 CONFIG REQUIRED)
+find_package(DR3 0.2 CONFIG REQUIRED)
 target_link_libraries(my_target PRIVATE DR3::Vectorisation)
 ```
 
-`<VecX/dr3.h>` is the supported installed umbrella header. DR3 is pre-1.0;
-the package currently provides same-minor (`0.1.x`) CMake compatibility.
+`<VecX/dr3.h>` is the supported installed umbrella header. This package is the
+`0.2.0-alpha.1` pre-release; its numeric CMake version is `0.2.0` and it
+provides same-minor (`0.2.x`) compatibility.
 
 ## Current contract and caveats
 

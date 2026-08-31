@@ -5,10 +5,15 @@ project(DR3PackageConsumer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-find_package(DR3 0.1 CONFIG REQUIRED)
+find_package(DR3 0.2 CONFIG REQUIRED)
 
 if(NOT TARGET DR3::Vectorisation)
     message(FATAL_ERROR "DR3 package did not export DR3::Vectorisation")
+endif()
+
+if(NOT DR3_RELEASE_VERSION STREQUAL "0.2.0-alpha.1")
+    message(FATAL_ERROR
+        "Expected DR3 release 0.2.0-alpha.1, found ${DR3_RELEASE_VERSION}")
 endif()
 
 if(DEFINED DR3_EXPECTED_ISA AND
