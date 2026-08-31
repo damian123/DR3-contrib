@@ -63,6 +63,69 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --timeout 120
 
+  package-consumer:
+    name: ${{ matrix.os }} ${{ matrix.compiler }} installed package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            compiler: msvc
+            compiler_args: ""
+          - os: ubuntu-latest
+            compiler: gcc
+            compiler_args: -DCMAKE_CXX_COMPILER=g++
+          - os: ubuntu-latest
+            compiler: clang
+            compiler_args: -DCMAKE_CXX_COMPILER=clang++
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure package producer
+        run: >-
+          cmake -S . -B package-build
+          -DCMAKE_BUILD_TYPE=Release
+          -DDR3_BUILD_TESTS=OFF
+          -DDR3_BUILD_EXAMPLES=OFF
+          ${{ matrix.compiler_args }}
+
+      - name: Build package producer
+        run: cmake --build package-build --config Release
+
+      - name: Install package
+        run: >-
+          cmake --install package-build --config Release
+          --prefix "${{ github.workspace }}/package-prefix"
+
+      - name: Configure package consumer
+        run: >-
+          cmake -S tests/package_consumer -B package-consumer-build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/package-prefix"
+          -DDR3_EXPECTED_ISA=AVX2
+          ${{ matrix.compiler_args }}
+
+      - name: Build package consumer
+        run: cmake --build package-consumer-build --config Release
+
+      - name: Test package consumer
+        run: >-
+          ctest --test-dir package-consumer-build -C Release
+          --output-on-failure --timeout 60
+
+      - name: Reject unsupported ISA
+        if: matrix.compiler == 'gcc'
+        shell: bash
+        run: |
+          if cmake -S . -B invalid-isa-build \
+              -DDR3_BUILD_TESTS=OFF \
+              -DDR3_BUILD_EXAMPLES=OFF \
+              -DDR3_ISA=NOT_A_REAL_ISA; then
+            echo "Unsupported DR3_ISA unexpectedly configured"
+            exit 1
+          fi
+
   sanitizers:
     name: ubuntu gcc Debug ASan/UBSan
     runs-on: ubuntu-latest
