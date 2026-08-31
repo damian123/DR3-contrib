@@ -5,6 +5,9 @@ add_library(DR3::Vectorisation ALIAS Vectorisation)
 
 dr3_apply_isa(Vectorisation)
 
+set_target_properties(Vectorisation PROPERTIES
+    POSITION_INDEPENDENT_CODE ON)
+
 target_compile_features(Vectorisation PUBLIC cxx_std_17)
 
 target_include_directories(Vectorisation PUBLIC

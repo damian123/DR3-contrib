@@ -31,8 +31,8 @@ ctest --test-dir build -C Release --output-on-failure
 
 Available options are:
 
-- `DR3_BUILD_EXAMPLES=ON|OFF` (default `ON`)
-- `DR3_BUILD_TESTS=ON|OFF` (default `ON`)
+- `DR3_BUILD_EXAMPLES=ON|OFF` (default `ON` standalone, `OFF` as a subdirectory)
+- `DR3_BUILD_TESTS=ON|OFF` (default `ON` standalone, `OFF` as a subdirectory)
 - `DR3_ISA=SSE2|AVX2|AVX512` (default `AVX2`)
 - `DR3_ENABLE_SANITIZERS=ON|OFF` (default `OFF`; GCC/Clang ASan and UBSan)
 
@@ -50,7 +50,9 @@ cmake --build build-core --config Release
 ## Install and use the CMake package
 
 Build and install one instruction-set variant per prefix. The installed target
-exports the same compile baseline to consumers of DR3's inline headers.
+exports the same compile baseline to consumers of DR3's inline headers. The
+static core is position-independent so it can also be linked into shared
+consumer libraries.
 
 ```sh
 cmake -S . -B build-package \
@@ -74,12 +76,22 @@ target_link_libraries(my_target PRIVATE DR3::Vectorisation)
 #include <VecX/dr3.h>
 ```
 
+`<VecX/dr3.h>` is the supported installed umbrella header. The package also
+installs the headers needed transitively by that entry point, but standalone
+inclusion of every internal `VecX` header is not a compatibility promise.
+
+DR3 is still pre-1.0. Its CMake version file uses same-minor compatibility, so
+`0.1.x` packages can satisfy a `find_package(DR3 0.1 ...)` request; compatibility
+across different pre-1.0 minor versions is not implied.
+
 The package exposes `DR3_BUILT_ISA` as informational metadata. Consumers must
 not change it; install another DR3 build to a separate prefix when a different
 baseline is required.
 
-The checked-in smoke test verifies the installed archive, headers, exported
-compile requirements, package version, and `find_package` entry point:
+The checked-in smoke test links the installed archive into a shared consumer
+library and runs a small executable against it. This verifies position-
+independent code, headers, exported compile requirements, package version, and
+the `find_package` entry point:
 
 ```sh
 cmake -S tests/package_consumer -B build-package-consumer \
@@ -94,11 +106,14 @@ For an in-tree dependency, the same stable target name is available without an
 installation:
 
 ```cmake
-set(DR3_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(DR3_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(path/to/DR3)
 target_link_libraries(my_target PRIVATE DR3::Vectorisation)
 ```
+
+Tests and examples default to `OFF` in this form so DR3 does not fetch
+GoogleTest or add auxiliary executables to the parent build. Set either option
+before `add_subdirectory` when those targets are wanted explicitly. The
+checked-in `tests/subdirectory_consumer` fixture verifies these defaults.
 
 ## Test scope
 

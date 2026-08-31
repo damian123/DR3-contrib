@@ -8,9 +8,18 @@ include(CMakePackageConfigHelpers)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-option(DR3_BUILD_TESTS "Build VectorTest and register it with CTest" ON)
-option(DR3_BUILD_EXAMPLES "Build example programs" ON)
+set(_DR3_BUILD_AUXILIARIES_DEFAULT OFF)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(_DR3_BUILD_AUXILIARIES_DEFAULT ON)
+endif()
+
+option(DR3_BUILD_TESTS "Build VectorTest and register it with CTest"
+    ${_DR3_BUILD_AUXILIARIES_DEFAULT})
+option(DR3_BUILD_EXAMPLES "Build example programs"
+    ${_DR3_BUILD_AUXILIARIES_DEFAULT})
 option(DR3_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
+
+unset(_DR3_BUILD_AUXILIARIES_DEFAULT)
 
 # VectorTest uses the AVX2 DRC::VecD4D namespace. AVX512 may be compiled
 # but is not the default runtime test ISA.

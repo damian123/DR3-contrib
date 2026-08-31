@@ -64,7 +64,7 @@ jobs:
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --timeout 120
 
   package-consumer:
-    name: ${{ matrix.os }} ${{ matrix.compiler }} installed package
+    name: ${{ matrix.os }} ${{ matrix.compiler }} package consumers
     strategy:
       fail-fast: false
       matrix:
@@ -106,12 +106,27 @@ jobs:
           -DDR3_EXPECTED_ISA=AVX2
           ${{ matrix.compiler_args }}
 
-      - name: Build package consumer
+      - name: Build shared package consumer
         run: cmake --build package-consumer-build --config Release
 
-      - name: Test package consumer
+      - name: Test shared package consumer
         run: >-
           ctest --test-dir package-consumer-build -C Release
+          --output-on-failure --timeout 60
+
+      - name: Configure subdirectory consumer
+        run: >-
+          cmake -S tests/subdirectory_consumer -B subdirectory-consumer-build
+          -DCMAKE_BUILD_TYPE=Release
+          -DDR3_ROOT="${{ github.workspace }}"
+          ${{ matrix.compiler_args }}
+
+      - name: Build subdirectory consumer
+        run: cmake --build subdirectory-consumer-build --config Release
+
+      - name: Test subdirectory consumer
+        run: >-
+          ctest --test-dir subdirectory-consumer-build -C Release
           --output-on-failure --timeout 60
 
       - name: Reject unsupported ISA
@@ -125,6 +140,58 @@ jobs:
             echo "Unsupported DR3_ISA unexpectedly configured"
             exit 1
           fi
+
+  package-isa-variants:
+    name: ubuntu gcc ${{ matrix.isa }} installed package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - isa: SSE2
+            run_consumer: true
+          - isa: AVX512
+            run_consumer: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure package producer
+        run: >-
+          cmake -S . -B package-build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=g++
+          -DDR3_BUILD_TESTS=OFF
+          -DDR3_BUILD_EXAMPLES=OFF
+          -DDR3_ISA=${{ matrix.isa }}
+
+      - name: Build package producer
+        run: cmake --build package-build --config Release
+
+      - name: Install package
+        run: >-
+          cmake --install package-build --config Release
+          --prefix "${{ github.workspace }}/package-prefix"
+
+      - name: Configure shared package consumer
+        run: >-
+          cmake -S tests/package_consumer -B package-consumer-build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/package-prefix"
+          -DDR3_EXPECTED_ISA=${{ matrix.isa }}
+
+      - name: Build shared package consumer
+        run: cmake --build package-consumer-build --config Release
+
+      - name: Run SSE2 package consumer
+        if: matrix.run_consumer
+        run: >-
+          ctest --test-dir package-consumer-build -C Release
+          --output-on-failure --timeout 60
+
+      - name: Confirm AVX512 is compile-only
+        if: matrix.run_consumer == false
+        run: echo "AVX512 producer and consumer compiled; execution intentionally skipped"
 
   sanitizers:
     name: ubuntu gcc Debug ASan/UBSan

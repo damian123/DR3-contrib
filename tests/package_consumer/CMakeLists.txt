@@ -45,8 +45,15 @@ elseif(MSVC AND DR3_BUILT_ISA STREQUAL "AVX2")
     endif()
 endif()
 
-add_executable(dr3_package_consumer main.cpp)
+add_library(dr3_package_consumer SHARED library.cpp)
 target_link_libraries(dr3_package_consumer PRIVATE DR3::Vectorisation)
+set_target_properties(dr3_package_consumer PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+add_executable(dr3_package_consumer_runner main.cpp)
+target_link_libraries(dr3_package_consumer_runner
+    PRIVATE dr3_package_consumer)
 
 enable_testing()
-add_test(NAME DR3PackageConsumer COMMAND $<TARGET_FILE:dr3_package_consumer>)
+add_test(NAME DR3PackageConsumer
+    COMMAND $<TARGET_FILE:dr3_package_consumer_runner>)
