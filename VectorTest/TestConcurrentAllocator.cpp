@@ -281,20 +281,50 @@ TEST(ParallelAllocator, RemovePolicyRejectsLiveBlocks)
     EXPECT_NO_THROW(AllAllocators<double>::removePolicy(static_cast<int>(allocatedSize)));
 }
 
-#ifndef NDEBUG
-TEST(ParallelAllocator, DebugBuildRejectsDoubleAndUnknownFrees)
+TEST(ParallelAllocator, PaddedVecBoolReturnsItsActualPoolBlock)
 {
-    std::size_t allocatedSize = 65;
-    double* values = nullptr;
-    allocPool(allocatedSize, values);
-    freePool(allocatedSize, values);
-    EXPECT_THROW(freePool(allocatedSize, values), std::logic_error);
-
-    double foreignValue = 0.0;
-    EXPECT_THROW(freePool(allocatedSize, &foreignValue), std::logic_error);
+    freeAllAllocators(double{});
+    {
+        VecBL values(65);
+        ASSERT_GT(values.paddedSize(), values.size());
+        values.setAt(64, true);
+        EXPECT_TRUE(values[64]);
+    }
     EXPECT_NO_THROW(freeAllAllocators(double{}));
 }
-#endif
+
+TEST(ParallelAllocator, InvalidFreesFollowLibraryBuildDiagnostics)
+{
+    freeAllAllocators(double{});
+    std::size_t firstSize = 65;
+    std::size_t secondSize = 65;
+    double* first = nullptr;
+    double* second = nullptr;
+    allocPool(firstSize, first);
+    allocPool(secondSize, second);
+    ASSERT_EQ(firstSize, secondSize);
+
+    freePool(firstSize, first);
+
+    double foreignValue = 0.0;
+    if (dr3AllocatorDiagnosticsEnabled())
+    {
+        EXPECT_THROW(freePool(firstSize, first), std::logic_error);
+        EXPECT_THROW(freePool(firstSize, &foreignValue), std::logic_error);
+        EXPECT_THROW(freePool(firstSize - 1, second), std::logic_error);
+    }
+    else
+    {
+        EXPECT_NO_THROW(freePool(firstSize, first));
+        EXPECT_NO_THROW(freePool(firstSize, &foreignValue));
+        EXPECT_NO_THROW(freePool(firstSize - 1, second));
+    }
+
+    // Invalid returns must not consume the other live block.
+    EXPECT_THROW(freeAllAllocators(double{}), std::logic_error);
+    freePool(secondSize, second);
+    EXPECT_NO_THROW(freeAllAllocators(double{}));
+}
 
 TEST(ParallelAllocator, RepeatedStartupAndShutdown)
 {

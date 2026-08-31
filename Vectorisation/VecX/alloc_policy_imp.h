@@ -163,16 +163,16 @@ public:
 private:
 	void reportInvalidFree(T* pointer) const
 	{
-#ifndef NDEBUG
+		if (!dr3AllocatorDiagnosticsEnabled())
+		{
+			return;
+		}
 		const auto entry = std::find(m_memPool.begin(), m_memPool.end(), pointer);
 		if (entry != m_memPool.end())
 		{
 			throw std::logic_error("double free returned to allocator pool");
 		}
 		throw std::logic_error("pointer does not belong to allocator pool");
-#else
-		(void)pointer;
-#endif
 	}
 
 	long m_pos;
@@ -253,15 +253,25 @@ class AllAllocators
 	}
 
 
-	static 	void setUpPolicy(int size_N)
+	static AllocPolicy<T>* setUpPolicy(int size_N)
 	{
 		auto& map = policies();
 		auto itr = map.find(size_N);
-		if (map.end() == itr)
+		if (map.end() != itr)
 		{
-			pAllocPolicy = new AllocPolicy<T>(size_N);
-			map[size_N] = pAllocPolicy;
+			return itr->second;
 		}
+
+		// Do not publish the cache pointer until map insertion succeeds. If
+		// allocation or insertion throws, unique_ptr releases the new policy
+		// and the registry/cache remain unchanged.
+		auto newPolicy = std::make_unique<AllocPolicy<T>>(size_N);
+		auto inserted = map.emplace(size_N, newPolicy.get());
+		if (inserted.second)
+		{
+			newPolicy.release();
+		}
+		return inserted.first->second;
 	}
 
 
@@ -320,9 +330,7 @@ public:
 			return  pAllocPolicy->alloc();
 		}
 
-		setUpPolicy(size_N);
-
-		pAllocPolicy = policies()[size_N];
+		pAllocPolicy = setUpPolicy(size_N);
 		lastSize_N = size_N;
 		return pAllocPolicy->alloc();
 	}
@@ -341,11 +349,11 @@ public:
 		auto policy = map.find(sz_N);
 		if (map.end() == policy)
 		{
-#ifndef NDEBUG
-			throw std::logic_error("no allocator pool exists for returned block size");
-#else
+			if (dr3AllocatorDiagnosticsEnabled())
+			{
+				throw std::logic_error("no allocator pool exists for returned block size");
+			}
 			return;
-#endif
 		}
 
 		pAllocPolicy = policy->second;
@@ -412,7 +420,7 @@ public:
 		{
 			freeAllAllocators(T());
 		}
-		catch (...)
+		catch (const std::logic_error&)
 		{
 		}
 	}

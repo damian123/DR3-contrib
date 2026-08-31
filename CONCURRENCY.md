@@ -26,8 +26,9 @@ operating system to reclaim instead of terminating the process.
 - Calling `freeAllAllocators(...)` while workers or pool-backed values are
   alive is unsupported and throws when a live block can be detected.
 - Removing a size-specific policy while one of its blocks is live is
-  unsupported and throws. Debug builds also diagnose unknown and duplicate
-  pool returns; release builds preserve the legacy no-op behavior.
+  unsupported and throws. Libraries built in Debug mode also diagnose unknown
+  and duplicate pool returns; Release libraries preserve the legacy no-op
+  behavior even when consumed by a Debug application.
 
 Tests use independent values, synchronized starts, and joined workers. The
 focused ThreadSanitizer gate exercises allocator and independently owned

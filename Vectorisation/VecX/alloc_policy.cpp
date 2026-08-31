@@ -12,6 +12,15 @@
 #include "alloc_policy.h"
 #include "alloc_policy_imp.h"
 
+bool dr3AllocatorDiagnosticsEnabled() noexcept
+{
+#ifdef NDEBUG
+	return false;
+#else
+	return true;
+#endif
+}
+
 template<>
 int AllAllocators<long double>::lastSize_N = -1;
 template<>
