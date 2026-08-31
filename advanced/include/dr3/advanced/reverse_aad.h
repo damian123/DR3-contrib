@@ -269,33 +269,28 @@ public:
 
         friend Active operator+(const Active& left, const Active& right)
         {
-            ReverseTape& tape = compatibleTape(left, right);
-            return tape.binary(left, right, left.primal_ + right.primal_,
-                               Traits::one(), Traits::one());
+            return left.recordBinary(right, left.primal_ + right.primal_,
+                                     Traits::one(), Traits::one());
         }
         friend Active operator-(const Active& left, const Active& right)
         {
-            ReverseTape& tape = compatibleTape(left, right);
-            return tape.binary(left, right, left.primal_ - right.primal_,
-                               Traits::one(), -Traits::one());
+            return left.recordBinary(right, left.primal_ - right.primal_,
+                                     Traits::one(), -Traits::one());
         }
         friend Active operator*(const Active& left, const Active& right)
         {
-            ReverseTape& tape = compatibleTape(left, right);
-            return tape.binary(left, right, left.primal_ * right.primal_,
-                               right.primal_, left.primal_);
+            return left.recordBinary(right, left.primal_ * right.primal_,
+                                     right.primal_, left.primal_);
         }
         friend Active operator/(const Active& left, const Active& right)
         {
-            ReverseTape& tape = compatibleTape(left, right);
-            return tape.binary(left, right, left.primal_ / right.primal_,
-                               Traits::one() / right.primal_,
-                               -left.primal_ / (right.primal_ * right.primal_));
+            return left.recordBinary(right, left.primal_ / right.primal_,
+                                     Traits::one() / right.primal_,
+                                     -left.primal_ / (right.primal_ * right.primal_));
         }
         friend Active operator-(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
-            return tape.unary(argument, -argument.primal_, -Traits::one());
+            return argument.recordUnary(-argument.primal_, -Traits::one());
         }
 
         friend Active operator+(const Active& left, double right)
@@ -327,47 +322,40 @@ public:
 
         friend Active exp(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
             const Value primal = Traits::exp(argument.primal_);
-            return tape.unary(argument, primal, primal);
+            return argument.recordUnary(primal, primal);
         }
         friend Active log(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
-            return tape.unary(argument, Traits::log(argument.primal_),
-                              Traits::one() / argument.primal_);
+            return argument.recordUnary(Traits::log(argument.primal_),
+                                        Traits::one() / argument.primal_);
         }
         friend Active sqrt(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
             const Value primal = Traits::sqrt(argument.primal_);
-            return tape.unary(argument, primal, Traits::constant(0.5) / primal);
+            return argument.recordUnary(primal, Traits::constant(0.5) / primal);
         }
         friend Active sin(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
-            return tape.unary(argument, Traits::sin(argument.primal_),
-                              Traits::cos(argument.primal_));
+            return argument.recordUnary(Traits::sin(argument.primal_),
+                                        Traits::cos(argument.primal_));
         }
         friend Active cos(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
-            return tape.unary(argument, Traits::cos(argument.primal_),
-                              -Traits::sin(argument.primal_));
+            return argument.recordUnary(Traits::cos(argument.primal_),
+                                        -Traits::sin(argument.primal_));
         }
         friend Active pow(const Active& argument, double exponent)
         {
-            ReverseTape& tape = argument.usableTape();
             const Value primal = Traits::pow(argument.primal_, exponent);
             const Value derivative = Traits::constant(exponent)
                 * Traits::pow(argument.primal_, exponent - 1.0);
-            return tape.unary(argument, primal, derivative);
+            return argument.recordUnary(primal, derivative);
         }
         friend Active normalCdf(const Active& argument)
         {
-            ReverseTape& tape = argument.usableTape();
-            return tape.unary(argument, Traits::normalCdf(argument.primal_),
-                              Traits::normalPdf(argument.primal_));
+            return argument.recordUnary(Traits::normalCdf(argument.primal_),
+                                        Traits::normalPdf(argument.primal_));
         }
 
     private:
@@ -399,6 +387,19 @@ public:
                 throw std::invalid_argument("reverse operands belong to different tapes");
             }
             return tape;
+        }
+
+        Active recordUnary(const Value& primal, const Value& partial) const
+        {
+            ReverseTape& tape = usableTape();
+            return tape.unary(*this, primal, partial);
+        }
+
+        Active recordBinary(const Active& right, const Value& primal,
+                            const Value& leftPartial, const Value& rightPartial) const
+        {
+            ReverseTape& tape = compatibleTape(*this, right);
+            return tape.binary(*this, right, primal, leftPartial, rightPartial);
         }
 
         ReverseTape* tape_{};
