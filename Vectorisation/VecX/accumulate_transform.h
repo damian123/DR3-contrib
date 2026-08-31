@@ -895,7 +895,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 
 		INS_VEC RHS0 = rhs1.getScalarValue();
 		auto res = tfrm(RHS0);
-		return RHS0[0];
+		return res[0];
 	}
 
 	long sz = static_cast<long>(rhs1.size());
@@ -1046,7 +1046,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 		val.load_partial(remainder, pRhs);
 		val = tfrm(val);
 		RES = scanN(val, ZERO, oper);
-		whole_reg_sum += RES[remainder];
+		whole_reg_sum += RES[remainder - 1];
 		pRhs += remainder;
 	}
 
@@ -1342,7 +1342,7 @@ typename InstructionTraits<INS_VEC>::FloatType ApplyTransformAccumulate2UR_X_pai
 		val_lhs.load_partial(remainder, pLhs1);
 		val = tfrm(val_lhs, val_rhs);
 		RES = scanN(val, ZERO, oper);
-		whole_reg_sum += RES[remainder];
+		whole_reg_sum += RES[remainder - 1];
 		pRhs1 += remainder;
 		pLhs1 += remainder;
 	}
