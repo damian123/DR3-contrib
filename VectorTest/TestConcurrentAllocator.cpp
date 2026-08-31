@@ -12,6 +12,7 @@
 #include <mutex>
 #include <set>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 namespace
@@ -250,6 +251,50 @@ TEST(ParallelAllocator, CleanupRejectsLiveBlocks)
     freePool(allocatedSize, values);
     EXPECT_NO_THROW(freeAllAllocators(double{}));
 }
+
+TEST(ParallelAllocator, GuardCleanupIsNonThrowingWithLiveBlocks)
+{
+    static_assert(std::is_nothrow_destructible_v<AllAllocatorsGuard<double>>);
+
+    std::size_t allocatedSize = 65;
+    double* values = nullptr;
+    allocPool(allocatedSize, values);
+    {
+        AllAllocatorsGuard<double> guard;
+    }
+    values[0] = 42.0;
+    EXPECT_DOUBLE_EQ(values[0], 42.0);
+    freePool(allocatedSize, values);
+    EXPECT_NO_THROW(freeAllAllocators(double{}));
+}
+
+TEST(ParallelAllocator, RemovePolicyRejectsLiveBlocks)
+{
+    std::size_t allocatedSize = 65;
+    double* values = nullptr;
+    allocPool(allocatedSize, values);
+    EXPECT_THROW(AllAllocators<double>::removePolicy(static_cast<int>(allocatedSize)),
+                 std::logic_error);
+    values[0] = 7.0;
+    EXPECT_DOUBLE_EQ(values[0], 7.0);
+    freePool(allocatedSize, values);
+    EXPECT_NO_THROW(AllAllocators<double>::removePolicy(static_cast<int>(allocatedSize)));
+}
+
+#ifndef NDEBUG
+TEST(ParallelAllocator, DebugBuildRejectsDoubleAndUnknownFrees)
+{
+    std::size_t allocatedSize = 65;
+    double* values = nullptr;
+    allocPool(allocatedSize, values);
+    freePool(allocatedSize, values);
+    EXPECT_THROW(freePool(allocatedSize, values), std::logic_error);
+
+    double foreignValue = 0.0;
+    EXPECT_THROW(freePool(allocatedSize, &foreignValue), std::logic_error);
+    EXPECT_NO_THROW(freeAllAllocators(double{}));
+}
+#endif
 
 TEST(ParallelAllocator, RepeatedStartupAndShutdown)
 {

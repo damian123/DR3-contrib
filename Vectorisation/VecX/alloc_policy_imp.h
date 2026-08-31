@@ -10,6 +10,7 @@
 * Apache License version 2.0 or later.
 *****************************************************************************/
 #pragma once
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -73,9 +74,15 @@ public:
 
 	void free(T* pToFree)
 	{
-		//typically this should be next one down from top of stack
-		if ((m_pos <= 0) || (nullptr == pToFree))
+		if (nullptr == pToFree)
 		{
+			return;
+		}
+
+		//typically this should be next one down from top of stack
+		if (m_pos <= 0)
+		{
+			reportInvalidFree(pToFree);
 			return;
 		}
 
@@ -105,6 +112,7 @@ public:
 			}
 		}
 
+		reportInvalidFree(pToFree);
 	}
 
 
@@ -153,6 +161,20 @@ public:
 	}
 
 private:
+	void reportInvalidFree(T* pointer) const
+	{
+#ifndef NDEBUG
+		const auto entry = std::find(m_memPool.begin(), m_memPool.end(), pointer);
+		if (entry != m_memPool.end())
+		{
+			throw std::logic_error("double free returned to allocator pool");
+		}
+		throw std::logic_error("pointer does not belong to allocator pool");
+#else
+		(void)pointer;
+#endif
+	}
+
 	long m_pos;
 	long m_sz;
 	std::vector<T*>  m_memPool;
@@ -254,6 +276,10 @@ public:
 		if (map.end() != itr)
 		{
 			auto policyPtr = itr->second;
+			if (policyPtr->liveCount() != 0)
+			{
+				throw std::logic_error("cannot remove allocator pool while blocks are live");
+			}
 			if (pAllocPolicy == policyPtr)
 			{
 				pAllocPolicy = nullptr;
@@ -306,15 +332,23 @@ public:
 	static void  free(size_t size_N, T* pMem)
 	{
 		std::lock_guard<std::mutex> lock(registryMutex());
-		int sz_N = static_cast<int>(size_N);
-
-		if (lastSize_N == sz_N)
+		if (nullptr == pMem)
 		{
-			return  pAllocPolicy->free(pMem);
+			return;
+		}
+		int sz_N = static_cast<int>(size_N);
+		auto& map = policies();
+		auto policy = map.find(sz_N);
+		if (map.end() == policy)
+		{
+#ifndef NDEBUG
+			throw std::logic_error("no allocator pool exists for returned block size");
+#else
+			return;
+#endif
 		}
 
-		setUpPolicy(sz_N);
-		pAllocPolicy = policies()[sz_N];
+		pAllocPolicy = policy->second;
 		lastSize_N = sz_N;
 		return pAllocPolicy->free(pMem);
 
@@ -368,9 +402,19 @@ template <typename T = double>
 class AllAllocatorsGuard
 {
 public:
-	~AllAllocatorsGuard()
+	~AllAllocatorsGuard() noexcept
 	{
-		freeAllAllocators(T());
+		// Explicit cleanup reports live blocks to callers, but static teardown
+		// must never allow that diagnostic to escape a destructor. The registry
+		// and mutex intentionally have process lifetime, so leaving a live pool
+		// for the operating system to reclaim is safe at process exit.
+		try
+		{
+			freeAllAllocators(T());
+		}
+		catch (...)
+		{
+		}
 	}
 
 };

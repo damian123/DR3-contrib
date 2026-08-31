@@ -12,12 +12,22 @@ supporting evidence, not a guarantee that arbitrary sharing is safe.
 The allocator mutex is acquired only when storage is obtained or returned. It
 is not acquired by SIMD arithmetic on an already-owned value.
 
+The registry map and its mutex are intentionally heap-allocated
+process-lifetime objects. This avoids cross-translation-unit static destruction
+ordering hazards. Explicit cleanup still releases all pools once their live
+block counts reach zero. The `AllAllocatorsGuard` teardown path is nonthrowing;
+if a static value is still live during process exit, its pool is left for the
+operating system to reclaim instead of terminating the process.
+
 ## Unsupported use
 
 - Concurrent mutation of the same `Vec` or `VecD` is unsupported.
 - Retaining or using a raw pool pointer after returning it is unsupported.
 - Calling `freeAllAllocators(...)` while workers or pool-backed values are
   alive is unsupported and throws when a live block can be detected.
+- Removing a size-specific policy while one of its blocks is live is
+  unsupported and throws. Debug builds also diagnose unknown and duplicate
+  pool returns; release builds preserve the legacy no-op behavior.
 
 Tests use independent values, synchronized starts, and joined workers. The
 focused ThreadSanitizer gate exercises allocator and independently owned
