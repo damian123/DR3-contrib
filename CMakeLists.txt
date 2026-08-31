@@ -8,6 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 option(DR3_BUILD_TESTS "Build VectorTest and register it with CTest" ON)
 option(DR3_BUILD_EXAMPLES "Build example programs" ON)
 option(DR3_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
+option(DR3_ENABLE_TSAN "Enable ThreadSanitizer (GCC/Clang)" OFF)
+
+if(DR3_ENABLE_SANITIZERS AND DR3_ENABLE_TSAN)
+    message(FATAL_ERROR "DR3_ENABLE_SANITIZERS and DR3_ENABLE_TSAN cannot be combined")
+endif()
 
 # VectorTest uses the AVX2 DRC::VecD4D namespace. AVX512 may be compiled
 # but is not the default runtime test ISA.
@@ -48,8 +53,23 @@ if(DR3_ENABLE_SANITIZERS AND MSVC)
     message(WARNING "DR3_ENABLE_SANITIZERS is supported on GCC/Clang only")
 endif()
 
+function(dr3_enable_tsan target)
+    if(DR3_ENABLE_TSAN AND NOT MSVC)
+        target_compile_options(${target} PRIVATE
+            -fsanitize=thread
+            -fno-omit-frame-pointer)
+        target_link_options(${target} PRIVATE
+            -fsanitize=thread)
+    endif()
+endfunction()
+
+if(DR3_ENABLE_TSAN AND MSVC)
+    message(FATAL_ERROR "DR3_ENABLE_TSAN is supported on GCC/Clang only")
+endif()
+
 add_subdirectory(Vectorisation)
 dr3_enable_sanitizers(Vectorisation)
+dr3_enable_tsan(Vectorisation)
 
 if(DR3_BUILD_EXAMPLES)
     add_subdirectory(accumulateExample)
@@ -79,4 +99,5 @@ if(DR3_BUILD_TESTS)
     enable_testing()
     add_subdirectory(VectorTest)
     dr3_enable_sanitizers(VectorTest)
+    dr3_enable_tsan(VectorTest)
 endif()

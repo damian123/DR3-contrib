@@ -55,3 +55,5 @@ set(DR3_GTEST_EXCLUDE
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
 add_test(NAME ParallelAllocator
     COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ParallelAllocator.*)
+add_test(NAME ConcurrencySafetyVector
+    COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=ConcurrencySafety.*)
