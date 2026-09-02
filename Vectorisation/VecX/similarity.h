@@ -26,6 +26,19 @@ struct SearchHit {
     float score;
 };
 
+namespace detail {
+
+inline Vec8f load_zero_padded_tail(const float* values, std::size_t n)
+{
+    alignas(32) float padded[8] = {};
+    std::copy_n(values, n, padded);
+    Vec8f result;
+    result.load_a(padded);
+    return result;
+}
+
+} // namespace detail
+
 // Cosine of a zero-norm vector is this sentinel (never NaN).
 constexpr float kZeroNormCosine = 0.f;
 constexpr float kZeroNormEps = 1.0e-30f;
@@ -77,9 +90,8 @@ inline float dot_product(Simd::SpanXX a, Simd::SpanXX b)
         sum += av * bv;
     }
     if (i < a.size()) {
-        Vec8f av, bv;
-        av.load_partial(static_cast<int>(a.size() - i), a.start() + i);
-        bv.load_partial(static_cast<int>(a.size() - i), b.start() + i);
+        const Vec8f av = detail::load_zero_padded_tail(a.start() + i, a.size() - i);
+        const Vec8f bv = detail::load_zero_padded_tail(b.start() + i, b.size() - i);
         sum += av * bv;
     }
     return horizontal_add(sum);
@@ -118,9 +130,8 @@ inline float squared_l2_distance(Simd::SpanXX a, Simd::SpanXX b)
         sum += d * d;
     }
     if (i < a.size()) {
-        Vec8f av, bv;
-        av.load_partial(static_cast<int>(a.size() - i), a.start() + i);
-        bv.load_partial(static_cast<int>(a.size() - i), b.start() + i);
+        const Vec8f av = detail::load_zero_padded_tail(a.start() + i, a.size() - i);
+        const Vec8f bv = detail::load_zero_padded_tail(b.start() + i, b.size() - i);
         const Vec8f d = av - bv;
         sum += d * d;
     }

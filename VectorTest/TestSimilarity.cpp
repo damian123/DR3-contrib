@@ -4,6 +4,7 @@
 #include "../Vectorisation/VecX/similarity.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <numeric>
@@ -69,6 +70,35 @@ TEST(TestSimilarity, NonOwningSpansMatchPointerKernels)
         DRC::AI::squared_l2_distance(a.data(), a.size(), b.data(), b.size()), 1e-5f);
     EXPECT_NEAR(DRC::AI::cosine_similarity(as, bs),
         DRC::AI::cosine_similarity(a.data(), a.size(), b.data(), b.size()), 1e-5f);
+}
+
+TEST(TestSimilarity, NonOwningSpanTailsAreAlignmentSafe)
+{
+    constexpr std::size_t dims[] = {1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15};
+    alignas(32) std::array<float, 20> a_storage{};
+    alignas(32) std::array<float, 20> b_storage{};
+    for (std::size_t offset = 0; offset < 4; ++offset) {
+        float* a = a_storage.data() + offset;
+        float* b = b_storage.data() + offset;
+        for (std::size_t i = 0; i < 16; ++i) {
+            a[i] = static_cast<float>(i + 1) * 0.125f;
+            b[i] = static_cast<float>(17 - i) * -0.0625f;
+        }
+        for (std::size_t d : dims) {
+            DRC::AI::Simd::SpanXX as(a, d);
+            DRC::AI::Simd::SpanXX bs(b, d);
+            EXPECT_TRUE(close(
+                DRC::AI::dot_product(as, bs),
+                DRC::AI::ref::dot_product(a, d, b, d),
+                1e-5, 1e-5))
+                << "dot offset=" << offset << " d=" << d;
+            EXPECT_TRUE(close(
+                DRC::AI::squared_l2_distance(as, bs),
+                DRC::AI::ref::squared_l2_distance(a, d, b, d),
+                1e-5, 1e-5))
+                << "l2 offset=" << offset << " d=" << d;
+        }
+    }
 }
 
 TEST(TestSimilarity, IdenticalVectors)
