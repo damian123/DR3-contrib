@@ -1,6 +1,24 @@
 /************************ neural_kernels.h **********************************
  * Stable float32 preprocessing kernels for small CPU inference workloads.
- * AVX2 (VecF8F) is the default tested path; callers own all storage.
+ * AVX2 (VecF8F) is the current implementation and tested path; callers own
+ * all storage.
+ *
+ * Public contract:
+ * - Buffers are contiguous one-dimensional float32 arrays; caller alignment
+ *   is not required. Only the first n logical values participate, including
+ *   when n is not a multiple of the VecF8F width.
+ * - Inputs and optional affine arrays contain finite values. Epsilon is finite
+ *   and positive; LeakyReLU alpha is finite and non-negative; clip bounds are
+ *   finite and ordered.
+ * - LayerNorm uses population variance and RMSNorm uses mean square. Both add
+ *   epsilon before the square root.
+ * - Exact input/output aliasing is supported. Other overlapping ranges,
+ *   including overlap with affine arrays, are not supported.
+ * - Empty operations are no-ops and may use null buffers; empty log-sum-exp
+ *   returns negative infinity. Parameters are still validated.
+ * - Sum-like reductions visit logical values in index order and accumulate in
+ *   double. The operation order is deterministic, but floating results should
+ *   be compared with a tolerance rather than for cross-platform bit identity.
  *****************************************************************************/
 #pragma once
 
@@ -35,6 +53,45 @@ inline void require_buffer(const float* p, std::size_t n, const char* what)
     }
 }
 
+namespace detail {
+
+inline void require_finite_buffer(const float* p, std::size_t n, const char* what)
+{
+    require_buffer(p, n, what);
+    for (std::size_t i = 0; i < n; ++i) {
+        if (!std::isfinite(p[i])) {
+            throw std::invalid_argument(what);
+        }
+    }
+}
+
+inline void require_finite_optional_buffer(const float* p, std::size_t n, const char* what)
+{
+    if (p != nullptr) {
+        require_finite_buffer(p, n, what);
+    }
+}
+
+inline void require_activation_parameters(Activation kind, float leaky_alpha)
+{
+    switch (kind) {
+    case Activation::LeakyRelu:
+        if (!std::isfinite(leaky_alpha) || leaky_alpha < 0.f) {
+            throw std::invalid_argument("LeakyReLU alpha must be finite and non-negative");
+        }
+        return;
+    case Activation::Relu:
+    case Activation::Sigmoid:
+    case Activation::Tanh:
+    case Activation::Gelu:
+    case Activation::Silu:
+        return;
+    }
+    throw std::invalid_argument("unknown activation");
+}
+
+} // namespace detail
+
 inline NeuralSimd::VecXX load_neural_vec(const float* p, std::size_t n)
 {
     require_buffer(p, n, "null input buffer");
@@ -55,6 +112,7 @@ inline void store_neural_vec(const NeuralSimd::VecXX& v, float* out, std::size_t
 inline NeuralSimd::VecXX activate_vec(
     const NeuralSimd::VecXX& x, Activation activation, float leaky_alpha = 0.01f)
 {
+    detail::require_activation_parameters(activation, leaky_alpha);
     switch (activation) {
     case Activation::Relu:
         return max(x, 0.f);
@@ -86,7 +144,9 @@ inline void activation(
     const float* input, std::size_t n, float* output,
     Activation kind, float leaky_alpha = 0.01f)
 {
+    detail::require_finite_buffer(input, n, "activation: input must contain only finite values");
     require_buffer(output, n, "activation: null output");
+    detail::require_activation_parameters(kind, leaky_alpha);
     if (n == 0) {
         return;
     }
@@ -107,9 +167,6 @@ inline void relu(const float* x, std::size_t n, float* out)
 
 inline void leaky_relu(const float* x, std::size_t n, float* out, float alpha = 0.01f)
 {
-    if (alpha < 0.f) {
-        throw std::invalid_argument("leaky_relu: alpha must be non-negative");
-    }
     activation(x, n, out, Activation::LeakyRelu, alpha);
 }
 
@@ -135,9 +192,10 @@ inline void silu(const float* x, std::size_t n, float* out)
 
 inline void clip(const float* x, std::size_t n, float lo, float hi, float* out)
 {
-    if (lo > hi) {
-        throw std::invalid_argument("clip: lower bound exceeds upper bound");
+    if (!std::isfinite(lo) || !std::isfinite(hi) || lo > hi) {
+        throw std::invalid_argument("clip: bounds must be finite and ordered");
     }
+    detail::require_finite_buffer(x, n, "clip: input must contain only finite values");
     require_buffer(out, n, "clip: null output");
     if (n == 0) {
         return;
@@ -154,8 +212,12 @@ inline void bias_plus_activation(
     const float* input, const float* bias, std::size_t n, float* output,
     Activation kind, float leaky_alpha = 0.01f)
 {
-    require_buffer(bias, n, "bias_plus_activation: null bias");
+    detail::require_finite_buffer(
+        input, n, "bias_plus_activation: input must contain only finite values");
+    detail::require_finite_buffer(
+        bias, n, "bias_plus_activation: bias must contain only finite values");
     require_buffer(output, n, "bias_plus_activation: null output");
+    detail::require_activation_parameters(kind, leaky_alpha);
     if (n == 0) {
         return;
     }
@@ -165,12 +227,13 @@ inline void bias_plus_activation(
 
 inline float log_sum_exp(const float* input, std::size_t n)
 {
-    require_buffer(input, n, "log_sum_exp: null input");
+    detail::require_finite_buffer(input, n, "log_sum_exp: input must contain only finite values");
     if (n == 0) {
         return -std::numeric_limits<float>::infinity();
     }
     const float xmax = *std::max_element(input, input + n);
     const auto shifted_exp = exp(load_neural_vec(input, n) - xmax);
+    // Deliberately exclude VecXX padding and preserve logical index order.
     double sum = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
         sum += static_cast<double>(shifted_exp[static_cast<int>(i)]);
@@ -180,13 +243,14 @@ inline float log_sum_exp(const float* input, std::size_t n)
 
 inline void softmax(const float* input, std::size_t n, float* output)
 {
-    require_buffer(input, n, "softmax: null input");
+    detail::require_finite_buffer(input, n, "softmax: input must contain only finite values");
     require_buffer(output, n, "softmax: null output");
     if (n == 0) {
         return;
     }
     const float xmax = *std::max_element(input, input + n);
     const auto numerators = exp(load_neural_vec(input, n) - xmax);
+    // Deliberately exclude VecXX padding and preserve logical index order.
     double sum = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
         sum += static_cast<double>(numerators[static_cast<int>(i)]);
@@ -201,7 +265,7 @@ inline void softmax_inplace(float* values, std::size_t n)
 
 inline void log_softmax(const float* input, std::size_t n, float* output)
 {
-    require_buffer(input, n, "log_softmax: null input");
+    detail::require_finite_buffer(input, n, "log_softmax: input must contain only finite values");
     require_buffer(output, n, "log_softmax: null output");
     if (n == 0) {
         return;
@@ -219,10 +283,14 @@ inline void layer_norm(
     const float* input, std::size_t n, float epsilon, float* output,
     const float* scale = nullptr, const float* bias = nullptr)
 {
-    require_buffer(input, n, "layer_norm: null input");
+    detail::require_finite_buffer(input, n, "layer_norm: input must contain only finite values");
+    detail::require_finite_optional_buffer(
+        scale, n, "layer_norm: scale must contain only finite values");
+    detail::require_finite_optional_buffer(
+        bias, n, "layer_norm: bias must contain only finite values");
     require_buffer(output, n, "layer_norm: null output");
-    if (!(epsilon > 0.f)) {
-        throw std::invalid_argument("layer_norm: epsilon must be positive");
+    if (!std::isfinite(epsilon) || !(epsilon > 0.f)) {
+        throw std::invalid_argument("layer_norm: epsilon must be finite and positive");
     }
     if (n == 0) {
         return;
@@ -239,7 +307,9 @@ inline void layer_norm(
     }
     const float inv_std = static_cast<float>(1.0 /
         std::sqrt(squared / static_cast<double>(n) + epsilon));
-    auto normalized = (load_neural_vec(input, n) - static_cast<float>(mean)) * inv_std;
+    const float mean_hi = static_cast<float>(mean);
+    const float mean_lo = static_cast<float>(mean - static_cast<double>(mean_hi));
+    auto normalized = ((load_neural_vec(input, n) - mean_hi) - mean_lo) * inv_std;
     if (scale != nullptr) {
         normalized *= load_neural_vec(scale, n);
     }
@@ -260,10 +330,12 @@ inline void rms_norm(
     const float* input, std::size_t n, float epsilon, float* output,
     const float* scale = nullptr)
 {
-    require_buffer(input, n, "rms_norm: null input");
+    detail::require_finite_buffer(input, n, "rms_norm: input must contain only finite values");
+    detail::require_finite_optional_buffer(
+        scale, n, "rms_norm: scale must contain only finite values");
     require_buffer(output, n, "rms_norm: null output");
-    if (!(epsilon > 0.f)) {
-        throw std::invalid_argument("rms_norm: epsilon must be positive");
+    if (!std::isfinite(epsilon) || !(epsilon > 0.f)) {
+        throw std::invalid_argument("rms_norm: epsilon must be finite and positive");
     }
     if (n == 0) {
         return;

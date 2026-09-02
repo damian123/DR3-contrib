@@ -51,3 +51,10 @@ set(DR3_GTEST_EXCLUDE
 add_test(NAME VectorTest COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=${DR3_GTEST_EXCLUDE})
 add_test(NAME VectorTestSimilarity COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=TestSimilarity.*)
 add_test(NAME VectorTestNeuralKernels COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Softmax.*:LayerNorm.*:RMSNorm.*:Activation.*)
+add_test(NAME NeuralSoftmax COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Softmax.*)
+add_test(NAME NeuralLayerNorm COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=LayerNorm.*)
+add_test(NAME NeuralRMSNorm COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=RMSNorm.*)
+add_test(NAME NeuralActivation COMMAND $<TARGET_FILE:VectorTest> --gtest_filter=Activation.*)
+set_tests_properties(
+    VectorTestNeuralKernels NeuralSoftmax NeuralLayerNorm NeuralRMSNorm NeuralActivation
+    PROPERTIES FAIL_REGULAR_EXPRESSION "Running 0 tests")
