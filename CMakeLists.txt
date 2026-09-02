@@ -60,9 +60,9 @@ if(DR3_BUILD_EXAMPLES)
     add_subdirectory(scratch)
     add_subdirectory(VariadicReduction)
     add_subdirectory(EmbeddingSearch)
+    add_subdirectory(SmallBatchInference)
 endif()
 
 if(DR3_BUILD_TESTS)
     add_subdirectory(VectorTest)
 endif()
-
